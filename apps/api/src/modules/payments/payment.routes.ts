@@ -16,6 +16,25 @@ import {
 
 export const paymentRouter = Router();
 
+/*
+ * LOTTERY_PLATFORM_VIRTUAL_ONLY
+ *
+ * Real-money deposit / withdrawal is intentionally disabled.
+ * This project operates only with virtual/test credits.
+ *
+ * No PSP/provider callback is exposed.
+ */
+
+paymentRouter.use((_req, res) => {
+  res.status(403).json({
+    ok: false,
+    code: "PAYMENTS_DISABLED",
+    message: "Real-money deposits and withdrawals are disabled. Use virtual test credits only.",
+    virtualOnly: true,
+  });
+});
+
+
 // Pakistani mobile-wallet number, e.g. 03001234567.
 const msisdn = z.string().regex(/^03\d{9}$/, 'Enter a valid 11-digit mobile number (03XXXXXXXXX)');
 const amount = z.string().regex(/^\d{1,12}$/); // minor units

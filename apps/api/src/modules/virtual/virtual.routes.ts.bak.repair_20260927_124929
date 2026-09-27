@@ -1,0 +1,326 @@
+import { Router } from 'express'
+import { requireAuth } from '../../middleware/auth.js'
+import { prisma } from '../../db/prisma.js'
+
+const router = Router()
+
+router.use(requireAuth)
+
+function authUserId(req: any) {
+  return (
+    req.user?.id ??
+    req.auth?.userId ??
+    req.userId ??
+    null
+  )
+}
+
+function numeric(value: any) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+/*
+ * Virtual-only platform endpoints.
+ *
+ * These endpoints intentionally do not connect to:
+ * - UPI
+ * - bank accounts
+ * - cards
+ * - payment gateways
+ * - real-money wallets
+ */
+
+router.get('/mode', (_req, res) => {
+  res.json({
+    ok: true,
+    data: {
+      mode: 'VIRTUAL_ONLY',
+      deposit: false,
+      withdrawal: false,
+      recharge: false,
+      realMoney: false,
+    },
+  })
+})
+
+router.get('/balance', async (req: any, res) => {
+  try {
+    const userId = authUserId(req)
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: 'AUTH_REQUIRED',
+      })
+    }
+
+    const account = await prisma.ledgerAccount.findFirst({
+      where: {
+        ownerType: 'USER',
+        ownerId: BigInt(userId),
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    })
+
+    return res.json({
+      ok: true,
+      data: {
+        balance: String(account?.balance ?? 0),
+        currency: 'TEST',
+        virtualOnly: true,
+      },
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      ok: false,
+      error: error?.message || 'VIRTUAL_BALANCE_ERROR',
+    })
+  }
+})
+
+router.get('/ledger', async (req: any, res) => {
+  try {
+    const userId = authUserId(req)
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: 'AUTH_REQUIRED'
+      })
+    }
+
+    const accounts = await prisma.ledgerAccount.findMany({
+      where: {
+        ownerType: 'USER',
+        ownerId: BigInt(userId),
+      },
+      select: {
+        id: true,
+        kind: true,
+        currency: true,
+        balance: true,
+      },
+    })
+
+    const accountIds = accounts.map((x: any) => x.id)
+
+    if (!accountIds.length) {
+      return res.json({
+        ok: true,
+        data: {
+          accounts: [],
+          entries: [],
+        },
+      })
+    }
+
+    const entries = await prisma.ledgerEntry.findMany({
+      where: {
+        accountId: {
+          in: accountIds,
+        },
+      },
+      orderBy: {
+        id: 'desc',
+      },
+      take: Math.min(
+        Math.max(Number(req.query.limit ?? 50), 1),
+        100
+      ),
+      include: {
+        transaction: true,
+      },
+    })
+
+    return res.json({
+      ok: true,
+      data: {
+        accounts: accounts.map((a: any) => ({
+          id: String(a.id),
+          kind: a.kind,
+          currency: a.currency,
+          balance: String(a.balance),
+        })),
+        entries: entries.map((e: any) => ({
+          id: String(e.id),
+          accountId: String(e.accountId),
+          transactionId: String(e.transactionId),
+          amount: String(e.amount),
+          balanceAfter: String(e.balanceAfter),
+          type: e.transaction?.type ?? null,
+          referenceType: e.transaction?.referenceType ?? null,
+          referenceId: e.transaction?.referenceId != null
+            ? String(e.transaction.referenceId)
+            : null,
+          memo: e.transaction?.memo ?? null,
+          createdAt: e.createdAt,
+        })),
+      },
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      ok: false,
+      error: error?.message ?? 'LEDGER_ERROR',
+    })
+  }
+})
+
+router.post('/credit', async (req: any, res) => {
+  try {
+    const userId = authUserId(req)
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: 'AUTH_REQUIRED',
+      })
+    }
+
+    const amount = numeric(req.body?.amount)
+    const reason = String(
+      req.body?.reason || 'demo_credit'
+    ).slice(0, 80)
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_AMOUNT',
+      })
+    }
+
+    if (amount > 1000000) {
+      return res.status(400).json({
+        ok: false,
+        error: 'AMOUNT_LIMIT',
+      })
+    }
+
+    /*
+     * VIRTUAL TEST CREDIT ONLY.
+     *
+     * No UPI / bank / card / payment gateway.
+     *
+     * Flow:
+     * LedgerTransaction
+     *      ↓
+     * LedgerEntry
+     *      ↓
+     * LedgerAccount.balance
+     */
+
+    const account = await prisma.ledgerAccount.findFirst({
+      where: {
+        ownerType: 'USER',
+        ownerId: BigInt(userId),
+        kind: 'USER_CASH',
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    })
+
+    if (!account) {
+      return res.status(404).json({
+        ok: false,
+        error: 'ACCOUNT_NOT_FOUND',
+      })
+    }
+
+    const minorAmount = BigInt(
+      Math.round(amount * 100)
+    )
+
+    if (minorAmount <= 0n) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_AMOUNT',
+      })
+    }
+
+    /*
+     * Pick the real enum value from the generated Prisma client.
+     * Prefer a credit/bonus/adjustment type.
+     */
+    // ADJUSTMENT is the real schema enum for virtual test credits.
+    const type = 'ADJUSTMENT'
+
+    const result = await prisma.$transaction(async (tx) => {
+      const fresh = await tx.ledgerAccount.findUnique({
+        where: {
+          id: account.id,
+        },
+      })
+
+      if (!fresh) {
+        throw new Error('ACCOUNT_NOT_FOUND')
+      }
+
+      const before = BigInt(fresh.balance)
+      const after = before + minorAmount
+
+      const transaction = await tx.ledgerTransaction.create({
+        data: {
+          type: 'ADJUSTMENT',
+          idempotencyKey:
+            `virtual-credit:${userId}:${Date.now()}:${Math.random().toString(36).slice(2,10)}`,
+          referenceType: 'VIRTUAL_CREDIT',
+          referenceId: BigInt(userId),
+          memo: reason,
+        },
+      })
+
+      const entry = await tx.ledgerEntry.create({
+        data: {
+          transactionId: transaction.id,
+          accountId: fresh.id,
+          amount: minorAmount,
+          balanceAfter: after,
+        },
+      })
+
+      const updated = await tx.ledgerAccount.update({
+        where: {
+          id: fresh.id,
+        },
+        data: {
+          balance: after,
+        },
+      })
+
+      return {
+        transaction,
+        entry,
+        updated,
+        before,
+        after,
+      }
+    })
+
+    return res.json({
+      ok: true,
+      data: {
+        balance: String(result.updated.balance),
+        amount,
+        amountMinor: String(minorAmount),
+        before: String(result.before),
+        after: String(result.after),
+        reason,
+        transactionId: String(result.transaction.id),
+        entryId: String(result.entry.id),
+        transactionType: type,
+        currency: result.updated.currency || 'TEST',
+        virtualOnly: true,
+      },
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      ok: false,
+      error: error?.message || 'VIRTUAL_CREDIT_ERROR',
+    })
+  }
+})
+
+export default router

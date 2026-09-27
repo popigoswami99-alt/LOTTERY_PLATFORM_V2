@@ -106,6 +106,12 @@ const router = createRouter({
       component: () => import('@/views/AdminView.vue'),
       meta: { requiresAuth: true, requiresAdmin: true, wide: true },
     },
+
+    { path: '/game/roulette', name: 'roulette', component: () => import('@/views/ExtraVirtualGameView.vue'), props: { gameCode: 'ROULETTE' } },
+    { path: '/game/blackjack', name: 'blackjack', component: () => import('@/views/ExtraVirtualGameView.vue'), props: { gameCode: 'BLACKJACK' } },
+    { path: '/game/teen-patti', name: 'teen-patti', component: () => import('@/views/ExtraVirtualGameView.vue'), props: { gameCode: 'TEEN_PATTI' } },
+    { path: '/game/slots', name: 'slots', component: () => import('@/views/ExtraVirtualGameView.vue'), props: { gameCode: 'SLOTS' } },
+    { path: '/game/fishing', name: 'fishing', component: () => import('@/views/ExtraVirtualGameView.vue'), props: { gameCode: 'FISHING' } },
   ],
   scrollBehavior: () => ({ top: 0 }),
 });

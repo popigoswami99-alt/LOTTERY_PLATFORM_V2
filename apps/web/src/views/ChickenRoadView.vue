@@ -652,7 +652,7 @@ onUnmounted(() => {
 }
 
 .btn-flat {
-  background: transparent;
+  background: #1b1b1f !important;
   border: none;
   color: #888;
   font-weight: bold;
@@ -728,7 +728,7 @@ onUnmounted(() => {
   font-weight: 700;
   font-size: 13px;
   color: #999;
-  background: transparent;
+  background: #1b1b1f !important;
   cursor: pointer;
   &:hover:not(:disabled) { color: #ccc; }
   &.active { background: #444; color: #fff; }
@@ -878,7 +878,7 @@ onUnmounted(() => {
   left: 50%;
   bottom: 200px;
   transform: translateX(-50%);
-  background: rgba(20, 20, 20, 0.97);
+  background: #1b1b1f !important;
   border: 1px solid #444;
   padding: 12px 24px;
   border-radius: 999px;
@@ -894,4 +894,350 @@ onUnmounted(() => {
   30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
   40%, 60% { transform: translate3d(4px, 0, 0); }
 }
+
+
+/* LOTTERY_PLATFORM_RESPONSIVE_FIX_V2 */
+
+.chicken-road,
+.layout,
+.board,
+.controls-panel,
+.controls-wrapper,
+.inputs-row,
+.bet-section,
+.diff-section,
+.action-section {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.chicken-road {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.layout {
+  overflow-x: hidden;
+}
+
+.board {
+  overflow: hidden;
+}
+
+.controls-wrapper {
+  overflow: hidden;
+}
+
+.inputs-row,
+.bet-section,
+.diff-section,
+.action-section {
+  min-width: 0;
+}
+
+.bet-inputs,
+.quick-chips,
+.diff-tabs {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bet-inputs > *,
+.quick-chips > *,
+.diff-tabs > * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.bet-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-header {
+  min-width: 0;
+}
+
+.diff-header .chance {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-section {
+  width: 100%;
+}
+
+.action-section .btn {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .chicken-road {
+    width: 100%;
+    max-width: 100vw;
+    height: auto;
+    min-height: 0;
+    overflow-x: hidden;
+  }
+
+  .top {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .brand {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mark {
+    white-space: nowrap;
+    font-size: 17px;
+  }
+
+  .howto {
+    flex: 0 0 auto;
+    max-width: 105px;
+    overflow: hidden;
+  }
+
+  .bal {
+    min-width: 0;
+  }
+
+  .layout {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .board {
+    width: 100%;
+    min-width: 0;
+    min-height: 250px;
+    height: 42vh;
+    max-height: 420px;
+  }
+
+  .road-container {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0 16px;
+  }
+
+  .controls-panel {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  .controls-wrapper {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .inputs-row {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bet-section,
+  .diff-section {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+  }
+
+  .diff-header {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .diff-header > span:first-child {
+    flex: 0 0 auto;
+  }
+
+  .diff-header .chance {
+    flex: 1;
+    text-align: right;
+  }
+
+  .diff-tabs {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .diff-tab {
+    min-width: 0;
+  }
+
+  .action-section {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+    height: 58px;
+  }
+
+  .bottom-bar {
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top {
+    gap: 5px;
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+
+  .exit {
+    width: 30px;
+    height: 30px;
+  }
+
+  .mark {
+    font-size: 15px;
+  }
+
+  .howto {
+    max-width: 88px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .board {
+    height: 38vh;
+    min-height: 220px;
+  }
+
+  .road-container {
+    padding: 0 10px;
+  }
+
+  .controls-panel {
+    padding: 8px;
+  }
+
+  .bet-section,
+  .diff-section {
+    padding: 8px;
+  }
+
+  .diff-header .chance {
+    font-size: 10px;
+  }
+
+  .action-section {
+    height: 56px;
+  }
+
+  .btn {
+    min-width: 0;
+    font-size: 15px;
+  }
+
+  .btn .start-val,
+  .btn .cashout-val {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .howto {
+    display: none;
+  }
+
+  .board {
+    height: 34vh;
+    min-height: 205px;
+  }
+
+  .diff-header .chance {
+    display: none;
+  }
+
+  .diff-tabs {
+    gap: 2px;
+  }
+
+  .diff-tab {
+    font-size: 10px;
+  }
+}
+
+
+/* LOTTERY_PLATFORM_GAME_UX_03 */
+:root{--game-bg:#121216;--game-card:#1b1b20;--game-border:#2d2d35}
+.aviator,.chicken-road,.mines,.plinko,.limbo,.dice,.wheel,.hilo{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.layout,.main,.board,.canvas,.panels,.panel,.controls,.controls-panel,
+.bet-panel,.game-board,.history,.actions{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box
+}
+.panels>*{min-width:0;max-width:100%;box-sizing:border-box}
+button,input,select{box-sizing:border-box;max-width:100%}
+@media(max-width:1000px){
+ .layout{display:flex;flex-direction:column;width:100%;padding:6px;gap:8px}
+ .panels{display:grid;grid-template-columns:minmax(0,1fr)!important;width:100%}
+ .panels>*{width:100%!important}
+}
+@media(max-width:600px){
+ .canvas,.board{height:300px;min-height:210px}
+ .controls,.controls-panel{padding:8px}
+ .panels{gap:8px}
+ .bet-panel,.panel{overflow:hidden;padding:8px}
+ .quick,.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:420px){
+ .canvas,.board{height:250px;min-height:200px}
+ .body{grid-template-columns:minmax(0,1fr)!important}
+}
+
 </style>
+
+/* LOTTERY_RESPONSIVE_CHICKEN */
+@media (min-width: 769px) {
+  .game,
+  .game-shell,
+  .game-container,
+  .panel,
+  .bet-panel,
+  .controls,
+  .bottom-panel {
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .game,
+  .game-shell,
+  .game-container,
+  .panel,
+  .bet-panel,
+  .controls,
+  .bottom-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+}

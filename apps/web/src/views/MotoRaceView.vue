@@ -322,4 +322,33 @@ onUnmounted(() => {
   background: rgba(40, 16, 28, 0.95); color: #fff;
   padding: 9px 16px; border-radius: 999px; font-size: 13px; z-index: 200; max-width: 90%; text-align: center;
 }
+
+/* LOTTERY_PLATFORM_GAME_UX_04 */
+.table-game,.dragon-tiger,.andar-bahar,.keno,.moto-race{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.table,.game-table,.card-table,.bet-panel,.controls,.history,.result{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box
+}
+.cards,.seats,.bets,.options,.number-grid{
+ min-width:0;max-width:100%
+}
+button{max-width:100%;box-sizing:border-box}
+@media(max-width:768px){
+ .table-game,.dragon-tiger,.andar-bahar,.keno,.moto-race{padding:6px}
+ .cards,.seats{overflow-x:auto}
+ .bet-panel,.controls{padding:8px}
+ .options,.bets,.number-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px;
+ }
+}
+@media(max-width:420px){
+ .cards{gap:4px}
+ .options,.bets,.number-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ }
+}
+
 </style>

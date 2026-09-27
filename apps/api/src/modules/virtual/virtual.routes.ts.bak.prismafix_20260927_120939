@@ -1,0 +1,222 @@
+import { Router } from 'express'
+import { requireAuth } from '../../middleware/auth.js'
+
+const router = Router()
+
+router.use(requireAuth)
+
+function authUserId(req: any) {
+  return (
+    req.user?.id ??
+    req.auth?.userId ??
+    req.userId ??
+    null
+  )
+}
+
+function numeric(value: any) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : 0
+}
+
+/*
+ * Virtual-only platform endpoints.
+ *
+ * These endpoints intentionally do not connect to:
+ * - UPI
+ * - bank accounts
+ * - cards
+ * - payment gateways
+ * - real-money wallets
+ */
+
+router.get('/mode', (_req, res) => {
+  res.json({
+    ok: true,
+    data: {
+      mode: 'VIRTUAL_ONLY',
+      deposit: false,
+      withdrawal: false,
+      recharge: false,
+      realMoney: false,
+    },
+  })
+})
+
+router.get('/balance', async (req: any, res) => {
+  try {
+    const prismaModule = await import('../../db/prisma')
+    const prisma: any = (prismaModule as any).prisma
+
+    const userId = authUserId(req)
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: 'AUTH_REQUIRED',
+      })
+    }
+
+    const account = await prisma.account.findFirst({
+      where: {
+        userId,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    })
+
+    return res.json({
+      ok: true,
+      data: {
+        balance: String(account?.balance ?? 0),
+        currency: 'TEST',
+        virtualOnly: true,
+      },
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      ok: false,
+      error: error?.message || 'VIRTUAL_BALANCE_ERROR',
+    })
+  }
+})
+
+router.get('/ledger', async (req: any, res) => {
+  try {
+    const prismaModule = await import('../../db/prisma')
+    const prisma: any = (prismaModule as any).prisma
+
+    const userId = authUserId(req)
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: 'AUTH_REQUIRED',
+      })
+    }
+
+    const limit = Math.min(
+      Math.max(Number(req.query.limit) || 50, 1),
+      100
+    )
+
+    const accounts = await prisma.account.findMany({
+      where: { userId },
+      select: { id: true },
+    })
+
+    const accountIds = accounts.map((x: any) => x.id)
+
+    if (!accountIds.length) {
+      return res.json({
+        ok: true,
+        data: [],
+      })
+    }
+
+    const rows = await prisma.transaction.findMany({
+      where: {
+        accountId: {
+          in: accountIds,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+    })
+
+    return res.json({
+      ok: true,
+      data: rows,
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      ok: false,
+      error: error?.message || 'VIRTUAL_LEDGER_ERROR',
+    })
+  }
+})
+
+router.post('/credit', async (req: any, res) => {
+  try {
+    const prismaModule = await import('../../db/prisma')
+    const prisma: any = (prismaModule as any).prisma
+
+    const userId = authUserId(req)
+
+    if (!userId) {
+      return res.status(401).json({
+        ok: false,
+        error: 'AUTH_REQUIRED',
+      })
+    }
+
+    const amount = numeric(req.body?.amount)
+    const reason =
+      String(req.body?.reason || 'demo_credit')
+        .slice(0, 80)
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_AMOUNT',
+      })
+    }
+
+    if (amount > 1000000) {
+      return res.status(400).json({
+        ok: false,
+        error: 'AMOUNT_LIMIT',
+      })
+    }
+
+    /*
+     * Demo/test credits only.
+     *
+     * No payment provider is involved.
+     * No bank/UPI/card information is accepted.
+     */
+
+    const account = await prisma.account.findFirst({
+      where: { userId },
+      orderBy: { id: 'asc' },
+    })
+
+    if (!account) {
+      return res.status(404).json({
+        ok: false,
+        error: 'ACCOUNT_NOT_FOUND',
+      })
+    }
+
+    const before = numeric(account.balance)
+    const after = before + amount
+
+    const updated = await prisma.account.update({
+      where: { id: account.id },
+      data: {
+        balance: after,
+      },
+    })
+
+    return res.json({
+      ok: true,
+      data: {
+        balance: String(updated.balance),
+        amount,
+        reason,
+        currency: 'TEST',
+        virtualOnly: true,
+      },
+    })
+  } catch (error: any) {
+    return res.status(500).json({
+      ok: false,
+      error: error?.message || 'VIRTUAL_CREDIT_ERROR',
+    })
+  }
+})
+
+export default router

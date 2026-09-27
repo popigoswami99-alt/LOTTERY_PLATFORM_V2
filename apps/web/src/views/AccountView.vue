@@ -1079,4 +1079,37 @@ const sheetTitle = computed(() => {
   max-width: 90%;
   text-align: center;
 }
+
+/* LOTTERY_PLATFORM_PLATFORM_UX_06 */
+.home,.activity,.rewards,.promotion,.wallet,.account{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.home *,.activity *,.rewards *,.promotion *,.wallet *,.account *{
+ box-sizing:border-box;max-width:100%
+}
+.category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+ width:100%;min-width:0;
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:10px;
+}
+.game-card,.category-card,.promo-card,.reward-card{
+ min-width:0;overflow:hidden;
+}
+@media(max-width:900px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr))
+ }
+}
+@media(max-width:600px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:7px
+ }
+}
+@media(max-width:360px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:5px
+ }
+}
+
 </style>

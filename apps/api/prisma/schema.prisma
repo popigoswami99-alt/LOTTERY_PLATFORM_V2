@@ -5,7 +5,9 @@
 // codebase — not in the DB, not in JS, not over the wire.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  engineType      = "client"
+  previewFeatures = ["queryCompiler", "driverAdapters"]
 }
 
 datasource db {

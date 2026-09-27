@@ -4,6 +4,7 @@ import { GAME_CODE_WINGO, wingoRules } from './wingo.js';
 import { GAME_CODE_K3, k3Rules } from './k3.js';
 import { GAME_CODE_5D, fiveDRules } from './fived.js';
 import { GAME_CODE_4D, fourDRules } from './fourd.js';
+import { rouletteRules, blackjackRules, teenPattiRules, slotsRules, fishingRules } from './extra-virtual.js';
 
 /**
  * The engine registry.
@@ -18,6 +19,11 @@ export const GAMES: Record<string, GameRules<any>> = {
   [GAME_CODE_K3]: k3Rules,
   [GAME_CODE_5D]: fiveDRules,
   [GAME_CODE_4D]: fourDRules,
+  [rouletteRules.gameCode]: rouletteRules,
+  [blackjackRules.gameCode]: blackjackRules,
+  [teenPattiRules.gameCode]: teenPattiRules,
+  [slotsRules.gameCode]: slotsRules,
+  [fishingRules.gameCode]: fishingRules,
 };
 
 export const GAME_CODES = Object.keys(GAMES);

@@ -1,0 +1,751 @@
+// Lottery platform — data model
+//
+// MONEY RULE: every monetary value in this schema is a BigInt of MINOR UNITS
+// (paise). 1 INR = 100. Floats are never used for money anywhere in this
+// codebase — not in the DB, not in JS, not over the wire.
+
+generator client {
+  provider        = "prisma-client-js"
+  engineType      = "client"
+  previewFeatures = ["queryCompiler", "driverAdapters"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Identity
+// ---------------------------------------------------------------------------
+
+enum UserStatus {
+  ACTIVE
+  FROZEN
+  BANNED
+}
+
+/// Set now so the back-office has something to authorise against when it is
+/// built. Nothing in the API checks it yet — an ADMIN today is an ordinary
+/// player with a flag set.
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id           BigInt     @id @default(autoincrement())
+  phone        String?    @unique(length: 32) @db.VarChar(32)
+  email        String?    @unique(length: 191) @db.VarChar(191)
+  passwordHash String     @db.VarChar(255)
+  nickname     String     @db.VarChar(64)
+  status       UserStatus @default(ACTIVE)
+  role         Role       @default(USER)
+
+  /// The amount in minor units this user must wager before a withdrawal is permitted.
+  /// Increases by 3x whenever a deposit or bonus is claimed.
+  wagerRequirement BigInt @default(0)
+  promoLevel       Int    @default(0)
+
+  // Referral tree. Kept from day one so the agent/commission engine can be
+  // layered on later without a migration that touches existing users.
+  inviteCode  String  @unique(length: 16) @db.VarChar(16)
+  invitedById BigInt?
+  invitedBy   User?   @relation("Referral", fields: [invitedById], references: [id], onDelete: SetNull)
+  referrals   User[]  @relation("Referral")
+
+  /// Stamped on every successful login, so the profile can show it.
+  lastLoginAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  accounts      LedgerAccount[]
+  bets          Bet[]
+  crashBets     CrashBet[]
+  instantBets   InstantBet[]
+  seedPairs     SeedPair[]
+  refreshTokens RefreshToken[]
+  commissions   CommissionRecord[]
+  bonusClaims   BonusClaim[]
+  promoBoxClaims PromoBoxClaim[]
+  depositOrders DepositOrder[]
+  withdrawals   WithdrawalRequest[]
+  tickets       SupportTicket[]
+  notifications Notification[]
+
+  @@index([invitedById])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        BigInt   @id @default(autoincrement())
+  userId    BigInt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String   @unique(length: 191) @db.VarChar(191)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Ledger
+//
+// Double-entry with SIGNED amounts. The invariant is simple and machine
+// checkable: for every Transaction, SUM(entries.amount) = 0. A positive entry
+// increases that account's balance, a negative one decreases it. There is no
+// debit/credit column to get backwards.
+// ---------------------------------------------------------------------------
+
+enum AccountOwnerType {
+  USER
+  SYSTEM
+}
+
+enum AccountKind {
+  USER_CASH // withdrawable balance
+  USER_BONUS // promo balance, separate so turnover rules can differ
+  USER_SAFE // the vault: parked funds that accrue interest and cannot be staked
+  HOUSE // operator's counterparty account for bets and payouts
+  DEPOSIT_CLEARING // money in from PSPs before it lands in a user account
+  WITHDRAW_CLEARING // money out to PSPs, pending settlement
+}
+
+model LedgerAccount {
+  id        BigInt           @id @default(autoincrement())
+  ownerType AccountOwnerType
+  ownerId   BigInt? // null for SYSTEM accounts
+  user      User?            @relation(fields: [ownerId], references: [id], onDelete: Cascade, map: "ledger_accounts_user_fk")
+  kind      AccountKind
+  currency  String           @default("INR") @db.VarChar(8)
+
+  // Cached running balance. Always written in the same DB transaction as the
+  // entries that move it, so it can never drift. verifyAccount() recomputes it
+  // from entries and asserts they agree.
+  balance BigInt @default(0)
+
+  /// SAFE accounts only: when interest was last accrued. Accrual is lazy —
+  /// computed and posted on read — so no scheduler is needed and a process
+  /// that was down simply catches up on the next look.
+  interestAccruedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries LedgerEntry[]
+
+  @@unique([ownerType, ownerId, kind, currency], name: "account_identity")
+  @@index([ownerId])
+  @@map("ledger_accounts")
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  BET_STAKE
+  BET_PAYOUT
+  BET_REFUND
+  ADJUSTMENT
+  BONUS_GRANT
+  SAFE_IN // cash moved into the vault
+  SAFE_OUT // vault moved back to cash
+  SAFE_INTEREST // interest credited on a vault balance
+  COMMISSION // agency rebate paid on a team's turnover
+}
+
+model LedgerTransaction {
+  id   BigInt          @id @default(autoincrement())
+  type TransactionType
+
+  // Idempotency: the caller supplies a stable key (e.g. "bet-stake:1234").
+  // A retry with the same key returns the original transaction instead of
+  // posting a second one. This is what stops double-spends and double-payouts.
+  idempotencyKey String @unique(length: 191) @db.VarChar(191)
+
+  // Free-form pointer back to the domain object that caused this movement.
+  referenceType String? @db.VarChar(32)
+  referenceId   BigInt?
+
+  memo      String?  @db.VarChar(255)
+  createdAt DateTime @default(now())
+
+  entries LedgerEntry[]
+
+  @@index([referenceType, referenceId])
+  @@index([createdAt])
+  @@map("ledger_transactions")
+}
+
+model LedgerEntry {
+  id            BigInt            @id @default(autoincrement())
+  transactionId BigInt
+  transaction   LedgerTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  accountId     BigInt
+  account       LedgerAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  // Signed minor units. Positive credits the account, negative debits it.
+  amount BigInt
+
+  // Balance of the account immediately after this entry was applied. Gives an
+  // auditable trail without replaying the whole history.
+  balanceAfter BigInt
+
+  createdAt DateTime @default(now())
+
+  @@index([accountId, id])
+  @@index([transactionId])
+  @@map("ledger_entries")
+}
+
+// ---------------------------------------------------------------------------
+// Games
+// ---------------------------------------------------------------------------
+
+enum PeriodStatus {
+  OPEN // accepting bets
+  LOCKED // betting closed, draw pending
+  SETTLED // result known, all bets paid out
+}
+
+model GamePeriod {
+  id      BigInt @id @default(autoincrement())
+  gameCode String @db.VarChar(32) // "WINGO"
+  roomKey  String @db.VarChar(32) // "WINGO_1M"
+
+  // Human-facing period number, derived deterministically from the clock, e.g.
+  // 20260801220100001. Unique per room.
+  periodNo String @db.VarChar(32)
+
+  startAt DateTime
+  lockAt  DateTime // betting closes here, a few seconds before endAt
+  endAt   DateTime
+
+  // Provably fair. serverSeedHash is published when the period opens;
+  // serverSeed is revealed only after the draw, so a player can verify that
+  // the result was fixed before betting started and was not chosen afterwards.
+  serverSeed     String  @db.VarChar(64)
+  serverSeedHash String  @db.VarChar(64)
+
+  status PeriodStatus @default(OPEN)
+
+  /**
+   * Canonical result, shaped by the game's own rules module — { n: 7 } for
+   * Win Go, { dice: [4,2,6] } for K3. Null until drawn.
+   */
+  resultData Json?
+
+  /**
+   * Denormalised single digit for the games that have one (Win Go, TRX).
+   * Null for games whose result is not one digit, e.g. K3. Kept alongside
+   * resultData purely so history queries and indexes stay cheap.
+   */
+  resultNumber Int?
+
+  drawnAt   DateTime?
+  settledAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  bets Bet[]
+
+  @@unique([roomKey, periodNo])
+  @@index([roomKey, status])
+  @@index([endAt])
+  @@map("game_periods")
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+  REFUNDED
+}
+
+model Bet {
+  id       BigInt     @id @default(autoincrement())
+  userId   BigInt
+  user     User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  periodId BigInt
+  period   GamePeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  /**
+   * Bet type and selection are free-form strings validated by the owning
+   * game's rules module, not a database enum — each game has its own bet
+   * surface (Win Go: NUMBER/COLOUR/SIZE; K3: TOTAL/PARITY/TRIPLE_EXACT/...)
+   * and a shared enum would have to be migrated for every new game.
+   */
+  gameCode  String @db.VarChar(32)
+  betType   String @db.VarChar(24)
+  selection String @db.VarChar(24)
+
+  // stake = unitAmount * multiplier, stored explicitly so the UI's chosen
+  // chip/multiplier is preserved for the bet history.
+  unitAmount BigInt
+  multiplier Int    @default(1)
+  stake      BigInt
+
+  // Odds as a rational (num/den) — 2x is 2/1, violet's 4.5x is 9/2. Avoids
+  // floats in payout maths entirely.
+  oddsNum Int
+  oddsDen Int @default(1)
+
+  status BetStatus @default(PENDING)
+  payout BigInt    @default(0)
+
+  stakeTxId  BigInt? // ledger transaction that debited the stake
+  payoutTxId BigInt? // ledger transaction that credited the winnings
+
+  createdAt DateTime  @default(now())
+  settledAt DateTime?
+
+  @@index([userId, createdAt])
+  @@index([periodId, status])
+  @@index([gameCode, userId])
+  @@map("bets")
+}
+
+// ---------------------------------------------------------------------------
+// Activity / bonuses
+//
+// Every bonus a player can receive is recorded here BEFORE the money moves.
+// The unique key on (userId, type, scope) is what makes each one claimable
+// exactly once: `scope` carries whatever makes the claim unique — the date for
+// a daily check-in or rebate, the code for a gift, the spin number for a
+// wheel. One table, one rule, no per-bonus bookkeeping to get wrong.
+// ---------------------------------------------------------------------------
+
+enum BonusType {
+  CHECKIN // daily attendance, escalating with the streak
+  REBATE // daily rebate on the player's OWN turnover
+  FIRST_DEPOSIT // one-off percentage of the first deposit
+  GIFT_CODE // redemption code
+  WHEEL // invite-wheel spin
+  VIP // one-off level-up reward when cumulative turnover crosses a tier
+}
+
+model BonusClaim {
+  id     BigInt    @id @default(autoincrement())
+  userId BigInt
+  user   User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   BonusType
+
+  /// What makes this claim unique within its type.
+  scope String @db.VarChar(64)
+
+  amount BigInt
+  meta   Json?
+  txId   BigInt?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, type, scope])
+  @@index([userId, createdAt])
+  @@index([userId, type])
+  @@map("bonus_claims")
+}
+
+model PromoBoxClaim {
+  id     BigInt   @id @default(autoincrement())
+  userId BigInt
+  user   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  level  Int      // 1, 2, or 3
+  boxGroup Int    // 1-10 for individual boxes, 11 for group 11-20, 21 for group 21-30, etc.
+  amount BigInt   // The claimed bonus amount in this box
+  
+  createdAt DateTime @default(now())
+
+  @@unique([userId, level, boxGroup])
+  @@index([userId])
+  @@map("promo_box_claims")
+}
+
+model GiftCode {
+  id     BigInt @id @default(autoincrement())
+  code   String @unique(length: 32) @db.VarChar(32)
+  amount BigInt
+
+  /// How many players may redeem it in total, and how many already have.
+  maxRedemptions Int @default(1)
+  redeemed       Int @default(0)
+
+  expiresAt DateTime?
+  active    Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+
+  @@map("gift_codes")
+}
+
+// ---------------------------------------------------------------------------
+// Agency
+//
+// Commission is settled one whole day at a time, and each settlement is
+// recorded here before the money moves. The unique key on (userId, forDate)
+// is what makes a day impossible to pay twice — settlement is driven lazily
+// on read, so it can be attempted concurrently from several requests.
+// ---------------------------------------------------------------------------
+
+model CommissionRecord {
+  id     BigInt @id @default(autoincrement())
+  userId BigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Midnight of the settled day, in the game timezone.
+  forDate DateTime
+
+  /// Team turnover that produced this commission, and the payout itself.
+  turnover BigInt
+  amount   BigInt
+
+  /// Per-level breakdown: [{ level, users, turnover, rateBps, amount }].
+  levels Json
+
+  txId BigInt?
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, forDate])
+  @@index([userId, forDate])
+  @@map("commission_records")
+}
+
+// ---------------------------------------------------------------------------
+// Crash
+//
+// A different engine shape from the period games: rounds run back to back,
+// each lasting as long as its own crash point dictates, rather than being
+// derived from the wall clock. So it gets its own tables rather than being
+// bent into GamePeriod.
+// ---------------------------------------------------------------------------
+
+enum CrashPhase {
+  WAITING // betting open
+  RUNNING // multiplier climbing
+  CRASHED // busted, settling
+  SETTLED
+}
+
+model CrashRound {
+  id      BigInt @id @default(autoincrement())
+  roundNo BigInt @unique
+
+  // Same commit-reveal as the lottery games: the hash is published while bets
+  // are open, the seed only after the bust.
+  serverSeed     String @db.VarChar(64)
+  serverSeedHash String @db.VarChar(64)
+
+  /// Crash point in integer hundredths of a multiplier: 250 = 2.50x.
+  /// Fixed at round creation, before any bet exists.
+  crashPointX100 Int
+
+  phase CrashPhase @default(WAITING)
+
+  waitingEndsAt DateTime
+  startedAt     DateTime?
+  crashedAt     DateTime?
+  settledAt     DateTime?
+
+  createdAt DateTime @default(now())
+
+  bets CrashBet[]
+
+  @@index([phase])
+  @@index([createdAt])
+  @@map("crash_rounds")
+}
+
+model CrashBet {
+  id      BigInt     @id @default(autoincrement())
+  userId  BigInt
+  user    User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roundId BigInt
+  round   CrashRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+
+  stake BigInt
+
+  /// Which of the two bet panels this came from. The game shows two
+  /// independent slots, so a player may hold up to two bets on one round —
+  /// each staked, cashed out and settled entirely separately.
+  slot Int @default(1)
+
+  /// Optional auto-cashout target, x100. Fires exactly at this multiplier.
+  autoCashoutX100 Int?
+  /// The multiplier actually cashed at, x100. Null if the player never did.
+  cashedOutX100   Int?
+
+  status BetStatus @default(PENDING)
+  payout BigInt    @default(0)
+
+  stakeTxId  BigInt?
+  payoutTxId BigInt?
+
+  createdAt DateTime  @default(now())
+  settledAt DateTime?
+
+  // One bet per player per SLOT per round keeps cashout unambiguous.
+  @@unique([roundId, userId, slot])
+  @@index([userId, createdAt])
+  @@index([roundId, status])
+  @@map("crash_bets")
+}
+
+// ---------------------------------------------------------------------------
+// Instant games (Dice, Limbo, Mines)
+//
+// Single-player, resolved immediately. There is no shared round to commit to,
+// so fairness rests on a per-player seed pair the player can rotate and then
+// verify every past bet against.
+// ---------------------------------------------------------------------------
+
+model SeedPair {
+  id     BigInt @id @default(autoincrement())
+  userId BigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// Never sent to the client while active — only its hash is.
+  serverSeed     String @db.VarChar(64)
+  serverSeedHash String @db.VarChar(64)
+
+  /// Chosen by the player. Their contribution stops the operator from picking
+  /// a server seed that is favourable against a known sequence of bets.
+  clientSeed String @db.VarChar(64)
+
+  /// Increments on every bet, so no two bets share an outcome.
+  nonce Int @default(0)
+
+  active     Boolean   @default(true)
+  revealedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  bets InstantBet[]
+
+  @@index([userId, active])
+  @@map("seed_pairs")
+}
+
+model InstantBet {
+  id     BigInt @id @default(autoincrement())
+  userId BigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  gameCode String @db.VarChar(16) // DICE | LIMBO | MINES
+
+  seedPairId BigInt
+  seedPair   SeedPair @relation(fields: [seedPairId], references: [id], onDelete: Cascade)
+  nonce      Int
+
+  stake BigInt
+
+  /// Bet configuration: dice {target, direction}, limbo {targetX100},
+  /// mines {mines}.
+  params Json
+
+  /// Mutable play state. Mines uses it for the tiles revealed so far; Dice and
+  /// Limbo have none because they resolve in a single call.
+  state Json?
+
+  /// Outcome. For Mines this holds the mine positions and MUST NOT be sent to
+  /// the client while the bet is still PENDING.
+  resultData Json?
+
+  multiplierX100 Int       @default(0)
+  status         BetStatus @default(PENDING)
+  payout         BigInt    @default(0)
+
+  stakeTxId  BigInt?
+  payoutTxId BigInt?
+
+  createdAt DateTime  @default(now())
+  settledAt DateTime?
+
+  @@index([userId, createdAt])
+  @@index([gameCode, userId])
+  @@index([seedPairId, nonce])
+  @@map("instant_bets")
+}
+
+// ---------------------------------------------------------------------------
+// Payments — JazzCash / Easypaisa mobile-wallet deposits and withdrawals
+//
+// Deposit is a DIRECT-DEBIT flow, not a paste-the-TID flow: the platform asks
+// the provider to debit the customer's wallet, the customer approves it on
+// their own phone with their MPIN, and the provider reports the result. No
+// transaction id is ever typed by the player. On success the wallet is
+// credited with the deposit plus a bonus, both immediately usable to bet.
+// ---------------------------------------------------------------------------
+
+enum PaymentChannel {
+  JAZZCASH
+  EASYPAISA
+}
+
+enum DepositStatus {
+  PENDING // order created, provider request being initiated
+  AWAITING_APPROVAL // debit requested — customer must approve with MPIN on their wallet
+  SUCCESS // provider confirmed, wallet credited
+  FAILED // provider declined or customer rejected
+  EXPIRED // approval window elapsed with no action
+}
+
+model DepositOrder {
+  id     BigInt         @id @default(autoincrement())
+  userId BigInt
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel PaymentChannel
+
+  /// Deposit amount and the bonus granted on top, both minor units (paise).
+  amount BigInt
+  bonus  BigInt @default(0)
+
+  status DepositStatus @default(PENDING)
+
+  /// The customer's mobile-wallet number the debit is requested from. JazzCash
+  /// MWALLET also needs the last 6 digits of the CNIC.
+  accountNumber String  @db.VarChar(20)
+  cnicLast6     String? @db.VarChar(6)
+
+  /// Our unique reference sent to the provider, and what the provider returns.
+  txnRef       String  @unique @db.VarChar(40)
+  providerRef  String? @db.VarChar(64)
+  providerCode String? @db.VarChar(8)
+  providerMsg  String? @db.VarChar(255)
+
+  /// Ledger transaction that credited the wallet on success.
+  txId BigInt?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("deposit_orders")
+}
+
+enum WithdrawalStatus {
+  PENDING // requested — funds held in withdraw clearing, awaiting review
+  APPROVED // operator approved, disbursement in flight
+  PAID // provider confirmed payout to the customer's wallet
+  REJECTED // operator rejected — held funds refunded to the player
+  FAILED // disbursement failed — held funds refunded to the player
+}
+
+model WithdrawalRequest {
+  id     BigInt         @id @default(autoincrement())
+  userId BigInt
+  user   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel PaymentChannel
+
+  amount BigInt
+
+  /// Destination wallet the payout is sent to.
+  accountNumber String @db.VarChar(20)
+  accountName   String @db.VarChar(64)
+
+  status WithdrawalStatus @default(PENDING)
+
+  /// Ledger tx that moved cash into withdraw-clearing when the request was made
+  /// (the hold), and the tx that refunded it on a reject/fail.
+  holdTxId   BigInt?
+  refundTxId BigInt?
+  providerRef String? @db.VarChar(64)
+
+  /// Who actioned it, and any note.
+  reviewedById BigInt?
+  reviewNote   String? @db.VarChar(255)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  reviewedAt DateTime?
+  paidAt     DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("withdrawal_requests")
+}
+
+// ---------------------------------------------------------------------------
+// Support tickets — the customer-service loop
+// ---------------------------------------------------------------------------
+
+enum TicketStatus {
+  OPEN // awaiting an operator
+  ANSWERED // operator has replied
+  CLOSED // resolved
+}
+
+model SupportTicket {
+  id      BigInt @id @default(autoincrement())
+  userId  BigInt
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  subject String @db.VarChar(120)
+  message String @db.Text
+
+  status TicketStatus @default(OPEN)
+
+  /// Operator's reply and who wrote it.
+  reply       String? @db.Text
+  repliedById BigInt?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  repliedAt DateTime?
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@map("support_tickets")
+}
+
+// ---------------------------------------------------------------------------
+// Announcements — operator-managed broadcasts shown to every player
+// ---------------------------------------------------------------------------
+
+model Announcement {
+  id    BigInt @id @default(autoincrement())
+  title String @db.VarChar(160)
+  body  String @db.Text
+
+  active Boolean @default(true)
+  pinned Boolean @default(false)
+
+  createdById BigInt?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([active, pinned])
+  @@map("announcements")
+}
+
+// ---------------------------------------------------------------------------
+// Notifications — per-player in-app messages (the in-app "push" channel)
+// ---------------------------------------------------------------------------
+
+enum NotificationKind {
+  SYSTEM
+  DEPOSIT
+  WITHDRAWAL
+  BONUS
+  VIP
+}
+
+model Notification {
+  id     BigInt @id @default(autoincrement())
+  userId BigInt
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  kind  NotificationKind @default(SYSTEM)
+  title String           @db.VarChar(160)
+  body  String           @db.VarChar(500)
+
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([userId, readAt])
+  @@map("notifications")
+}

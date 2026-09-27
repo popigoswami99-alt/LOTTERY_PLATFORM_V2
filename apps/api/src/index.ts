@@ -1,3 +1,4 @@
+import virtualRouter from './modules/virtual/virtual.routes'
 import { createServer } from 'node:http';
 import express from 'express';
 import cors from 'cors';
@@ -45,6 +46,7 @@ app.use('/api', gameRouter);
 app.use('/api/crash', optionalAuth, crashRouter);
 app.use('/api/instant', instantRouter);
 app.use('/api/payments', paymentRouter);
+app.use('/api/virtual', virtualRouter);
 app.use('/api/support', supportRouter);
 app.use('/api/announcements', announcementRouter);
 app.use('/api/notifications', notificationRouter);

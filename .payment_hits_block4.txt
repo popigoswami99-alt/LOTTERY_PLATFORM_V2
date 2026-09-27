@@ -1,0 +1,439 @@
+apps/api/src/modules/virtual/virtual.routes.ts:23: * - UPI
+apps/api/src/modules/virtual/virtual.routes.ts:24: * - bank accounts
+apps/api/src/modules/virtual/virtual.routes.ts:35:      deposit: false,
+apps/api/src/modules/virtual/virtual.routes.ts:36:      withdrawal: false,
+apps/api/src/modules/virtual/virtual.routes.ts:37:      recharge: false,
+apps/api/src/modules/virtual/virtual.routes.ts:176:     * No bank/UPI/card information is accepted.
+apps/api/src/modules/ledger/ledger.service.ts:56:  AccountKind.DEPOSIT_CLEARING,
+apps/api/src/modules/ledger/ledger.service.ts:57:  AccountKind.WITHDRAW_CLEARING,
+apps/api/src/modules/wallet/safe.service.ts:142:export async function depositToSafe(userId: bigint, amount: bigint) {
+apps/api/src/modules/wallet/safe.service.ts:172:export async function withdrawFromSafe(userId: bigint, amount: bigint) {
+apps/api/src/modules/wallet/wallet.routes.ts:64: * deposit flow and is hard-disabled outside development.
+apps/api/src/modules/wallet/wallet.routes.ts:81:      const clearing = await getOrCreateSystemAccount(tx, AccountKind.DEPOSIT_CLEARING);
+apps/api/src/modules/wallet/wallet.routes.ts:84:        type: TransactionType.DEPOSIT,
+apps/api/src/modules/agency/agency.service.ts:257:  depositors: number;
+apps/api/src/modules/agency/agency.service.ts:258:  depositAmount: string;
+apps/api/src/modules/agency/agency.service.ts:259:  firstDepositors: number;
+apps/api/src/modules/agency/agency.service.ts:262:/** Registration / deposit stats for a set of users. */
+apps/api/src/modules/agency/agency.service.ts:265:    return { registers: 0, depositors: 0, depositAmount: '0', firstDepositors: 0 };
+apps/api/src/modules/agency/agency.service.ts:274:  const deposits = await prisma.ledgerEntry.groupBy({
+apps/api/src/modules/agency/agency.service.ts:278:      transaction: { type: TransactionType.DEPOSIT },
+apps/api/src/modules/agency/agency.service.ts:285:  const depositAmount = deposits.reduce((acc, d) => acc + (d._sum.amount ?? 0n), 0n);
+apps/api/src/modules/agency/agency.service.ts:289:    // Distinct accounts that have ever received a deposit.
+apps/api/src/modules/agency/agency.service.ts:290:    depositors: deposits.length,
+apps/api/src/modules/agency/agency.service.ts:291:    depositAmount: depositAmount.toString(),
+apps/api/src/modules/agency/agency.service.ts:292:    // Everyone who has deposited has, by definition, made a first deposit.
+apps/api/src/modules/agency/agency.service.ts:293:    firstDepositors: deposits.length,
+apps/api/src/modules/admin/admin.service.ts:59:    depositsTotal,
+apps/api/src/modules/admin/admin.service.ts:60:    withdrawalsOut,
+apps/api/src/modules/admin/admin.service.ts:77:    // Deposits: positive legs on user accounts from a DEPOSIT transaction.
+apps/api/src/modules/admin/admin.service.ts:78:    sumEntries({ amount: { gt: 0 }, transaction: { is: { type: TransactionType.DEPOSIT } } }),
+apps/api/src/modules/admin/admin.service.ts:79:    // Withdrawals: negative legs on user accounts from a WITHDRAWAL transaction.
+apps/api/src/modules/admin/admin.service.ts:80:    sumEntries({ amount: { lt: 0 }, transaction: { is: { type: TransactionType.WITHDRAWAL } } }),
+apps/api/src/modules/admin/admin.service.ts:106:      deposits: depositsTotal, // paise in
+apps/api/src/modules/admin/admin.service.ts:107:      withdrawals: -withdrawalsOut, // paise out (stored negative → report positive)
+apps/api/src/modules/admin/admin.routes.ts:3:import { Role, TicketStatus, UserStatus, WithdrawalStatus } from '@prisma/client';
+apps/api/src/modules/admin/admin.routes.ts:16:  approveWithdrawal,
+apps/api/src/modules/admin/admin.routes.ts:17:  listWithdrawalsAdmin,
+apps/api/src/modules/admin/admin.routes.ts:18:  rejectWithdrawal,
+apps/api/src/modules/admin/admin.routes.ts:113:// --- withdrawals (payout queue) --------------------------------------------
+apps/api/src/modules/admin/admin.routes.ts:116:  '/withdrawals',
+apps/api/src/modules/admin/admin.routes.ts:119:      typeof req.query.status === 'string' && req.query.status in WithdrawalStatus
+apps/api/src/modules/admin/admin.routes.ts:120:        ? (req.query.status as WithdrawalStatus)
+apps/api/src/modules/admin/admin.routes.ts:123:    res.json({ ok: true, data: await listWithdrawalsAdmin(status, take) });
+apps/api/src/modules/admin/admin.routes.ts:128:  '/withdrawals/:id/approve',
+apps/api/src/modules/admin/admin.routes.ts:131:    res.json({ ok: true, data: await approveWithdrawal(req.userId!, BigInt(id)) });
+apps/api/src/modules/admin/admin.routes.ts:136:  '/withdrawals/:id/reject',
+apps/api/src/modules/admin/admin.routes.ts:140:    res.json({ ok: true, data: await rejectWithdrawal(req.userId!, BigInt(id), note) });
+apps/api/src/modules/payments/payment.routes.ts:7:  confirmDepositMpin,
+apps/api/src/modules/payments/payment.routes.ts:8:  createDeposit,
+apps/api/src/modules/payments/payment.routes.ts:9:  getDeposit,
+apps/api/src/modules/payments/payment.routes.ts:10:  handleDepositCallback,
+apps/api/src/modules/payments/payment.routes.ts:11:  listDeposits,
+apps/api/src/modules/payments/payment.routes.ts:12:  listWithdrawals,
+apps/api/src/modules/payments/payment.routes.ts:14:  requestWithdrawal,
+apps/api/src/modules/payments/payment.routes.ts:22: * Real-money deposit / withdrawal is intentionally disabled.
+apps/api/src/modules/payments/payment.routes.ts:32:    message: "Real-money deposits and withdrawals are disabled. Use virtual test credits only.",
+apps/api/src/modules/payments/payment.routes.ts:50:// --- deposit ---------------------------------------------------------------
+apps/api/src/modules/payments/payment.routes.ts:52:const depositSchema = z.object({
+apps/api/src/modules/payments/payment.routes.ts:60:  '/deposit',
+apps/api/src/modules/payments/payment.routes.ts:63:    const input = depositSchema.parse(req.body);
+apps/api/src/modules/payments/payment.routes.ts:64:    const order = await createDeposit(
+apps/api/src/modules/payments/payment.routes.ts:76:  '/deposit/:id',
+apps/api/src/modules/payments/payment.routes.ts:80:    res.json({ ok: true, data: await getDeposit(req.userId!, BigInt(id)) });
+apps/api/src/modules/payments/payment.routes.ts:85:  '/deposit/:id/confirm',
+apps/api/src/modules/payments/payment.routes.ts:90:    res.json({ ok: true, data: await confirmDepositMpin(req.userId!, BigInt(id), mpin) });
+apps/api/src/modules/payments/payment.routes.ts:95:  '/deposits',
+apps/api/src/modules/payments/payment.routes.ts:99:    res.json({ ok: true, data: await listDeposits(req.userId!, take) });
+apps/api/src/modules/payments/payment.routes.ts:103:// --- withdrawal ------------------------------------------------------------
+apps/api/src/modules/payments/payment.routes.ts:105:const withdrawSchema = z.object({
+apps/api/src/modules/payments/payment.routes.ts:113:  '/withdraw',
+apps/api/src/modules/payments/payment.routes.ts:116:    const input = withdrawSchema.parse(req.body);
+apps/api/src/modules/payments/payment.routes.ts:117:    const request = await requestWithdrawal(
+apps/api/src/modules/payments/payment.routes.ts:129:  '/withdrawals',
+apps/api/src/modules/payments/payment.routes.ts:133:    res.json({ ok: true, data: await listWithdrawals(req.userId!, take) });
+apps/api/src/modules/payments/payment.routes.ts:152:    await handleDepositCallback(channel, txnRef, success, providerRef);
+apps/api/src/modules/payments/providers/easypaisa.provider.ts:6:  InitiateDepositInput,
+apps/api/src/modules/payments/providers/easypaisa.provider.ts:48:  async initiateDeposit(input: InitiateDepositInput): Promise<ProviderResult> {
+apps/api/src/modules/payments/providers/sandbox.provider.ts:4:  InitiateDepositInput,
+apps/api/src/modules/payments/providers/sandbox.provider.ts:13: *   - initiateDeposit "sends" an MPIN request to the customer's wallet and
+apps/api/src/modules/payments/providers/sandbox.provider.ts:15: *     /deposit/:id/confirm endpoint (the player entering their MPIN in-app).
+apps/api/src/modules/payments/providers/sandbox.provider.ts:24:  async initiateDeposit(input: InitiateDepositInput): Promise<ProviderResult> {
+apps/api/src/modules/payments/providers/jazzcash.provider.ts:7:  InitiateDepositInput,
+apps/api/src/modules/payments/providers/jazzcash.provider.ts:66:  async initiateDeposit(input: InitiateDepositInput): Promise<ProviderResult> {
+apps/api/src/modules/payments/providers/types.ts:10:export interface InitiateDepositInput {
+apps/api/src/modules/payments/providers/types.ts:42:  initiateDeposit(input: InitiateDepositInput): Promise<ProviderResult>;
+apps/api/src/modules/payments/payment.service.ts:7:  WithdrawalStatus,
+apps/api/src/modules/payments/payment.service.ts:8:  type DepositOrder,
+apps/api/src/modules/payments/payment.service.ts:9:  type WithdrawalRequest,
+apps/api/src/modules/payments/payment.service.ts:26: * Payments orchestration for JazzCash / Easypaisa mobile-wallet deposits and
+apps/api/src/modules/payments/payment.service.ts:27: * withdrawals.
+apps/api/src/modules/payments/payment.service.ts:29: * DEPOSIT is a direct-debit: the provider is asked to debit the customer's
+apps/api/src/modules/payments/payment.service.ts:31: * in sandbox), and on success the wallet is credited with the deposit PLUS a
+apps/api/src/modules/payments/payment.service.ts:35: * WITHDRAWAL holds the funds in withdraw-clearing the instant it is requested,
+apps/api/src/modules/payments/payment.service.ts:47:    minDeposit: env.MIN_DEPOSIT_MINOR,
+apps/api/src/modules/payments/payment.service.ts:48:    minWithdraw: env.MIN_WITHDRAW_MINOR,
+apps/api/src/modules/payments/payment.service.ts:49:    bonusBps: env.DEPOSIT_BONUS_BPS,
+apps/api/src/modules/payments/payment.service.ts:54:// Deposit
+apps/api/src/modules/payments/payment.service.ts:61:export async function createDeposit(
+apps/api/src/modules/payments/payment.service.ts:67:): Promise<DepositOrder> {
+apps/api/src/modules/payments/payment.service.ts:68:  if (amountMinor < env.MIN_DEPOSIT_MINOR) {
+apps/api/src/modules/payments/payment.service.ts:69:    throw badRequest('MIN_DEPOSIT', `Minimum deposit is ${env.MIN_DEPOSIT_MINOR / 100n}`);
+apps/api/src/modules/payments/payment.service.ts:77:  const bonus = (amountMinor * BigInt(env.DEPOSIT_BONUS_BPS)) / 10000n;
+apps/api/src/modules/payments/payment.service.ts:80:  const order = await prisma.depositOrder.create({
+apps/api/src/modules/payments/payment.service.ts:95:    const result = await provider.initiateDeposit({
+apps/api/src/modules/payments/payment.service.ts:100:      description: `Wallet deposit ${txnRef}`,
+apps/api/src/modules/payments/payment.service.ts:103:    await prisma.depositOrder.update({
+apps/api/src/modules/payments/payment.service.ts:114:    if (result.settled) await creditDeposit(order.id);
+apps/api/src/modules/payments/payment.service.ts:116:    await prisma.depositOrder.update({
+apps/api/src/modules/payments/payment.service.ts:123:  return prisma.depositOrder.findUniqueOrThrow({ where: { id: order.id } });
+apps/api/src/modules/payments/payment.service.ts:131:export async function confirmDepositMpin(
+apps/api/src/modules/payments/payment.service.ts:135:): Promise<DepositOrder> {
+apps/api/src/modules/payments/payment.service.ts:142:  const order = await prisma.depositOrder.findFirst({ where: { id: orderId, userId } });
+apps/api/src/modules/payments/payment.service.ts:143:  if (!order) throw notFound('Deposit not found');
+apps/api/src/modules/payments/payment.service.ts:146:    throw badRequest('BAD_STATE', `This deposit is ${order.status.toLowerCase()}.`);
+apps/api/src/modules/payments/payment.service.ts:150:    return prisma.depositOrder.update({
+apps/api/src/modules/payments/payment.service.ts:157:  await creditDeposit(order.id);
+apps/api/src/modules/payments/payment.service.ts:158:  return prisma.depositOrder.findUniqueOrThrow({ where: { id: order.id } });
+apps/api/src/modules/payments/payment.service.ts:162: * Idempotently credits a settled deposit: the amount as a DEPOSIT and the bonus
+apps/api/src/modules/payments/payment.service.ts:166:async function creditDeposit(orderId: bigint): Promise<void> {
+apps/api/src/modules/payments/payment.service.ts:171:    const order = await tx.depositOrder.findUnique({ where: { id: orderId } });
+apps/api/src/modules/payments/payment.service.ts:177:    const clearing = await getOrCreateSystemAccount(tx, AccountKind.DEPOSIT_CLEARING);
+apps/api/src/modules/payments/payment.service.ts:179:    const deposit = await postTransaction(tx, {
+apps/api/src/modules/payments/payment.service.ts:180:      type: TransactionType.DEPOSIT,
+apps/api/src/modules/payments/payment.service.ts:181:      idempotencyKey: `deposit-credit:${order.id}`,
+apps/api/src/modules/payments/payment.service.ts:182:      referenceType: 'DEPOSIT_ORDER',
+apps/api/src/modules/payments/payment.service.ts:184:      memo: `${order.channel} deposit`,
+apps/api/src/modules/payments/payment.service.ts:195:        idempotencyKey: `deposit-bonus:${order.id}`,
+apps/api/src/modules/payments/payment.service.ts:196:        referenceType: 'DEPOSIT_ORDER',
+apps/api/src/modules/payments/payment.service.ts:198:        memo: `${order.channel} deposit bonus`,
+apps/api/src/modules/payments/payment.service.ts:211:    await tx.depositOrder.update({
+apps/api/src/modules/payments/payment.service.ts:213:      data: { status: 'SUCCESS', txId: deposit.id, completedAt: new Date() },
+apps/api/src/modules/payments/payment.service.ts:226:        NotificationKind.DEPOSIT,
+apps/api/src/modules/payments/payment.service.ts:227:        'Deposit successful',
+apps/api/src/modules/payments/payment.service.ts:235:export async function handleDepositCallback(
+apps/api/src/modules/payments/payment.service.ts:241:  const order = await prisma.depositOrder.findFirst({ where: { txnRef, channel } });
+apps/api/src/modules/payments/payment.service.ts:242:  if (!order) throw notFound('Unknown deposit reference');
+apps/api/src/modules/payments/payment.service.ts:245:      await prisma.depositOrder.update({ where: { id: order.id }, data: { providerRef } });
+apps/api/src/modules/payments/payment.service.ts:247:    await creditDeposit(order.id);
+apps/api/src/modules/payments/payment.service.ts:249:    await prisma.depositOrder.update({
+apps/api/src/modules/payments/payment.service.ts:256:export async function getDeposit(userId: bigint, orderId: bigint): Promise<DepositOrder> {
+apps/api/src/modules/payments/payment.service.ts:257:  const order = await prisma.depositOrder.findFirst({ where: { id: orderId, userId } });
+apps/api/src/modules/payments/payment.service.ts:258:  if (!order) throw notFound('Deposit not found');
+apps/api/src/modules/payments/payment.service.ts:262:export async function listDeposits(userId: bigint, take: number): Promise<DepositOrder[]> {
+apps/api/src/modules/payments/payment.service.ts:263:  return prisma.depositOrder.findMany({
+apps/api/src/modules/payments/payment.service.ts:271:// Withdrawal
+apps/api/src/modules/payments/payment.service.ts:274:export async function requestWithdrawal(
+apps/api/src/modules/payments/payment.service.ts:280:): Promise<WithdrawalRequest> {
+apps/api/src/modules/payments/payment.service.ts:281:  if (amountMinor < env.MIN_WITHDRAW_MINOR) {
+apps/api/src/modules/payments/payment.service.ts:282:    throw badRequest('MIN_WITHDRAW', `Minimum withdrawal is ${env.MIN_WITHDRAW_MINOR / 100n}`);
+apps/api/src/modules/payments/payment.service.ts:287:    throw badRequest('WAGER_REQUIRED', `You must wager ₹${formatMinor(u.wagerRequirement)} more before withdrawing.`);
+apps/api/src/modules/payments/payment.service.ts:291:    const created = await tx.withdrawalRequest.create({
+apps/api/src/modules/payments/payment.service.ts:296:    const clearing = await getOrCreateSystemAccount(tx, AccountKind.WITHDRAW_CLEARING);
+apps/api/src/modules/payments/payment.service.ts:298:    // Hold: cash → withdraw-clearing. If the player lacks the funds the ledger
+apps/api/src/modules/payments/payment.service.ts:302:      type: TransactionType.WITHDRAWAL,
+apps/api/src/modules/payments/payment.service.ts:303:      idempotencyKey: `withdraw-hold:${created.id}`,
+apps/api/src/modules/payments/payment.service.ts:304:      referenceType: 'WITHDRAWAL',
+apps/api/src/modules/payments/payment.service.ts:306:      memo: `${channel} withdrawal request`,
+apps/api/src/modules/payments/payment.service.ts:313:    return tx.withdrawalRequest.update({
+apps/api/src/modules/payments/payment.service.ts:324:export async function listWithdrawals(userId: bigint, take: number): Promise<WithdrawalRequest[]> {
+apps/api/src/modules/payments/payment.service.ts:325:  return prisma.withdrawalRequest.findMany({
+apps/api/src/modules/payments/payment.service.ts:332:/** Refund a held withdrawal back to the player's cash (reject / failure path). */
+apps/api/src/modules/payments/payment.service.ts:333:async function refundWithdrawal(
+apps/api/src/modules/payments/payment.service.ts:334:  request: WithdrawalRequest,
+apps/api/src/modules/payments/payment.service.ts:335:  status: WithdrawalStatus,
+apps/api/src/modules/payments/payment.service.ts:340:    const fresh = await tx.withdrawalRequest.findUnique({ where: { id: request.id } });
+apps/api/src/modules/payments/payment.service.ts:344:    const clearing = await getOrCreateSystemAccount(tx, AccountKind.WITHDRAW_CLEARING);
+apps/api/src/modules/payments/payment.service.ts:347:      type: TransactionType.WITHDRAWAL,
+apps/api/src/modules/payments/payment.service.ts:348:      idempotencyKey: `withdraw-refund:${request.id}`,
+apps/api/src/modules/payments/payment.service.ts:349:      referenceType: 'WITHDRAWAL',
+apps/api/src/modules/payments/payment.service.ts:351:      memo: `${request.channel} withdrawal ${status.toLowerCase()} — refund`,
+apps/api/src/modules/payments/payment.service.ts:358:    await tx.withdrawalRequest.update({
+apps/api/src/modules/payments/payment.service.ts:376:    NotificationKind.WITHDRAWAL,
+apps/api/src/modules/payments/payment.service.ts:377:    status === 'REJECTED' ? 'Withdrawal rejected' : 'Withdrawal failed',
+apps/api/src/modules/payments/payment.service.ts:378:    `Your ₹${formatMinor(request.amount)} withdrawal was ${status.toLowerCase()} and refunded to your wallet.${reason}`,
+apps/api/src/modules/payments/payment.service.ts:384:export async function listWithdrawalsAdmin(status: WithdrawalStatus | undefined, take: number) {
+apps/api/src/modules/payments/payment.service.ts:385:  const rows = await prisma.withdrawalRequest.findMany({
+apps/api/src/modules/payments/payment.service.ts:408:export async function approveWithdrawal(adminId: bigint, id: bigint): Promise<WithdrawalRequest> {
+apps/api/src/modules/payments/payment.service.ts:409:  const request = await prisma.withdrawalRequest.findUnique({ where: { id } });
+apps/api/src/modules/payments/payment.service.ts:410:  if (!request) throw notFound('Withdrawal not found');
+apps/api/src/modules/payments/payment.service.ts:412:    throw badRequest('BAD_STATE', `This withdrawal is already ${request.status.toLowerCase()}.`);
+apps/api/src/modules/payments/payment.service.ts:415:  await prisma.withdrawalRequest.update({
+apps/api/src/modules/payments/payment.service.ts:430:    const paid = await prisma.withdrawalRequest.update({
+apps/api/src/modules/payments/payment.service.ts:436:      NotificationKind.WITHDRAWAL,
+apps/api/src/modules/payments/payment.service.ts:437:      'Withdrawal paid',
+apps/api/src/modules/payments/payment.service.ts:443:    await refundWithdrawal(request, 'FAILED', (err as Error).message, adminId);
+apps/api/src/modules/payments/payment.service.ts:448:export async function rejectWithdrawal(
+apps/api/src/modules/payments/payment.service.ts:452:): Promise<WithdrawalRequest> {
+apps/api/src/modules/payments/payment.service.ts:453:  const request = await prisma.withdrawalRequest.findUnique({ where: { id } });
+apps/api/src/modules/payments/payment.service.ts:454:  if (!request) throw notFound('Withdrawal not found');
+apps/api/src/modules/payments/payment.service.ts:456:    throw badRequest('BAD_STATE', `This withdrawal is already ${request.status.toLowerCase()}.`);
+apps/api/src/modules/payments/payment.service.ts:458:  await refundWithdrawal(request, 'REJECTED', note, adminId);
+apps/api/src/modules/payments/payment.service.ts:459:  return prisma.withdrawalRequest.findUniqueOrThrow({ where: { id } });
+apps/api/src/modules/me/me.service.ts:20: * Turnover rather than deposits, so it reflects play and not just funding.
+apps/api/src/modules/me/me.service.ts:334:    TransactionType.DEPOSIT,
+apps/api/src/modules/me/me.service.ts:335:    TransactionType.WITHDRAWAL,
+apps/api/src/modules/me/me.service.ts:345:  deposit: [TransactionType.DEPOSIT],
+apps/api/src/modules/me/me.service.ts:346:  withdraw: [TransactionType.WITHDRAWAL],
+apps/api/src/modules/me/me.routes.ts:6:import { depositToSafe, getSafe, withdrawFromSafe } from '../wallet/safe.service.js';
+apps/api/src/modules/me/me.routes.ts:56:  '/safe/deposit',
+apps/api/src/modules/me/me.routes.ts:59:    res.json({ ok: true, data: await depositToSafe(req.userId!, BigInt(amount)) });
+apps/api/src/modules/me/me.routes.ts:64:  '/safe/withdraw',
+apps/api/src/modules/me/me.routes.ts:67:    res.json({ ok: true, data: await withdrawFromSafe(req.userId!, BigInt(amount)) });
+apps/api/src/modules/activity/activity.routes.ts:7:  claimFirstDeposit,
+apps/api/src/modules/activity/activity.routes.ts:12:  getFirstDepositState,
+apps/api/src/modules/activity/activity.routes.ts:66:// --- First deposit (single reward, sized by the highest bracket reached) ---
+apps/api/src/modules/activity/activity.routes.ts:69:  '/first-deposit',
+apps/api/src/modules/activity/activity.routes.ts:71:    res.json({ ok: true, data: await getFirstDepositState(req.userId!) });
+apps/api/src/modules/activity/activity.routes.ts:76:  '/first-deposit',
+apps/api/src/modules/activity/activity.routes.ts:78:    res.json({ ok: true, data: await claimFirstDeposit(req.userId!) });
+apps/api/src/modules/activity/activity.service.ts:321:// First deposit bonus — single reward, sized by which bracket the FIRST
+apps/api/src/modules/activity/activity.service.ts:322:// deposit reaches
+apps/api/src/modules/activity/activity.service.ts:326:// and it is sized by the highest bracket the player's first deposit reaches —
+apps/api/src/modules/activity/activity.service.ts:327:// depositing ₹10,000 qualifies for the ₹10,000 bracket only; the ₹5,000
+apps/api/src/modules/activity/activity.service.ts:330:// threshold. Brackets run ₹500 to ₹5,00,000; a first deposit under ₹500
+apps/api/src/modules/activity/activity.service.ts:335:export const FIRST_DEPOSIT_RATE_BPS = 1_000n; // 10%
+apps/api/src/modules/activity/activity.service.ts:337:const FIRST_DEPOSIT_THRESHOLDS_MINOR: bigint[] = [
+apps/api/src/modules/activity/activity.service.ts:351:export interface FirstDepositTier {
+apps/api/src/modules/activity/activity.service.ts:357:  (threshold) => ({ threshold, bonus: (threshold * FIRST_DEPOSIT_RATE_BPS) / BPS }),
+apps/api/src/modules/activity/activity.service.ts:360:/** The single highest bracket a deposit amount qualifies for, or null. */
+apps/api/src/modules/activity/activity.service.ts:361:export function firstDepositTierFor(depositAmount: bigint): FirstDepositTier | null {
+apps/api/src/modules/activity/activity.service.ts:362:  return FIRST_DEPOSIT_TIERS.reduce<FirstDepositTier | null>(
+apps/api/src/modules/activity/activity.service.ts:363:    (acc, t) => (depositAmount >= t.threshold ? t : acc),
+apps/api/src/modules/activity/activity.service.ts:368:export async function getFirstDepositState(userId: bigint) {
+apps/api/src/modules/activity/activity.service.ts:375:        transaction: { is: { type: TransactionType.DEPOSIT } },
+apps/api/src/modules/activity/activity.service.ts:381:      where: { userId, type: BonusType.FIRST_DEPOSIT },
+apps/api/src/modules/activity/activity.service.ts:386:  const firstDepositAmount = first?.amount ?? null;
+apps/api/src/modules/activity/activity.service.ts:387:  const qualifiedTier = firstDepositAmount !== null ? firstDepositTierFor(firstDepositAmount) : null;
+apps/api/src/modules/activity/activity.service.ts:390:    firstDepositAmount: firstDepositAmount?.toString() ?? null,
+apps/api/src/modules/activity/activity.service.ts:394:    ratePct: Number(FIRST_DEPOSIT_RATE_BPS) / 100,
+apps/api/src/modules/activity/activity.service.ts:400:      // A lower bracket their deposit also cleared, superseded by the higher one.
+apps/api/src/modules/activity/activity.service.ts:402:        firstDepositAmount !== null &&
+apps/api/src/modules/activity/activity.service.ts:403:        firstDepositAmount >= t.threshold &&
+apps/api/src/modules/activity/activity.service.ts:409:/** Awards the single first-deposit bonus, sized by the bracket it reached. */
+apps/api/src/modules/activity/activity.service.ts:410:export async function claimFirstDeposit(userId: bigint) {
+apps/api/src/modules/activity/activity.service.ts:417:      transaction: { is: { type: TransactionType.DEPOSIT } },
+apps/api/src/modules/activity/activity.service.ts:422:  if (!first) throw conflict('NO_DEPOSIT', 'Make a deposit first');
+apps/api/src/modules/activity/activity.service.ts:424:  const tier = firstDepositTierFor(first.amount);
+apps/api/src/modules/activity/activity.service.ts:428:      `Your first deposit must be at least ₹${(FIRST_DEPOSIT_TIERS[0].threshold / 100n).toString()}`,
+apps/api/src/modules/activity/activity.service.ts:434:    BonusType.FIRST_DEPOSIT,
+apps/api/src/modules/activity/activity.service.ts:437:    `first deposit bonus (₹${(tier.threshold / 100n).toString()} bracket)`,
+apps/api/src/modules/activity/activity.service.ts:438:    { depositAmount: first.amount.toString(), threshold: tier.threshold.toString() },
+apps/api/src/modules/activity/activity.service.ts:440:  if (!result) throw conflict('ALREADY_CLAIMED', 'First deposit bonus already claimed');
+apps/api/src/modules/activity/activity.service.ts:663:  const [todayAgg, totalAgg, checkin, wheel, firstDeposit] = await Promise.all([
+apps/api/src/modules/activity/activity.service.ts:671:    getFirstDepositState(userId),
+apps/api/src/modules/activity/activity.service.ts:679:    firstDeposit,
+apps/api/src/modules/activity/activity.service.ts:733:  let subDeposit = 0n;
+apps/api/src/modules/activity/activity.service.ts:735:    const dep = await prisma.depositOrder.aggregate({
+apps/api/src/modules/activity/activity.service.ts:739:    subDeposit = dep._sum.amount ?? 0n;
+apps/api/src/modules/activity/activity.service.ts:764:  return { subDeposit: subDeposit.toString(), subBet: subBet.toString(), claims };
+apps/api/src/modules/activity/activity.service.ts:769:  const subDeposit = BigInt(state.subDeposit);
+apps/api/src/modules/activity/activity.service.ts:772:  let requiredDeposit = 0n;
+apps/api/src/modules/activity/activity.service.ts:777:    requiredDeposit = 50000n; // 500 INR
+apps/api/src/modules/activity/activity.service.ts:781:    requiredDeposit = 200000n; // 2000 INR
+apps/api/src/modules/activity/activity.service.ts:785:    requiredDeposit = 500000n; // 5000 INR
+apps/api/src/modules/activity/activity.service.ts:792:  if (subDeposit < requiredDeposit || subBet < requiredBet) {
+apps/api/src/modules/notifications/notification.service.ts:11: * `notify` is the one entry point other modules call (deposit credited,
+apps/api/src/modules/notifications/notification.service.ts:12: * withdrawal paid, etc.). It is best-effort: a failure here must never roll
+apps/api/src/config/env.ts:18:  // 'sandbox' runs the whole deposit/withdraw flow against a simulated
+apps/api/src/config/env.ts:25:  /// Bonus granted on every successful deposit, in basis points (500 = 5%).
+apps/api/src/config/env.ts:26:  DEPOSIT_BONUS_BPS: z.coerce.number().min(0).max(10000).default(500),
+apps/api/src/config/env.ts:28:  /// Guard rails, in minor units (paise). Defaults: ₹100 min deposit, ₹150 min
+apps/api/src/config/env.ts:29:  /// withdrawal.
+apps/api/src/config/env.ts:30:  MIN_DEPOSIT_MINOR: z.coerce.bigint().default(10000n),
+apps/api/src/config/env.ts:31:  MIN_WITHDRAW_MINOR: z.coerce.bigint().default(15000n),
+apps/web/src/data/originalsUx.ts:2:  'Virtual/test credits only. Real-money deposit and withdrawal are disabled.'
+apps/web/src/data/lotteryUx.ts:9:  'Virtual/test credits only. Real-money deposit and withdrawal are disabled.'
+apps/web/src/data/platformMode.ts:4:  deposits: false,
+apps/web/src/data/platformMode.ts:5:  withdrawals: false,
+apps/web/src/stores/profile.ts:108:    async loadMoneyHistory(filter: 'all' | 'deposit' | 'withdraw' = 'all') {
+apps/web/src/stores/profile.ts:118:    async safeDeposit(amount: string) {
+apps/web/src/stores/profile.ts:119:      const { data } = await api.post('/me/safe/deposit', { amount });
+apps/web/src/stores/profile.ts:123:    async safeWithdraw(amount: string) {
+apps/web/src/stores/profile.ts:124:      const { data } = await api.post('/me/safe/withdraw', { amount });
+apps/web/src/stores/notifications.ts:6:  kind: 'SYSTEM' | 'DEPOSIT' | 'WITHDRAWAL' | 'BONUS' | 'VIP';
+apps/web/src/components/OriginalsControlPanel.vue:102:      Virtual/test credits only • No deposit • No withdrawal
+apps/web/src/components/FirstDepositPopup.vue:9: * The "Extra first deposit bonus" reminder. Pops up automatically once per
+apps/web/src/components/FirstDepositPopup.vue:30:interface FirstDepositState {
+apps/web/src/components/FirstDepositPopup.vue:31:  firstDepositAmount: string | null;
+apps/web/src/components/FirstDepositPopup.vue:41:const state = ref<FirstDepositState | null>(null);
+apps/web/src/components/FirstDepositPopup.vue:59:    const { data } = await api.get('/activity/first-deposit');
+apps/web/src/components/FirstDepositPopup.vue:78:    await api.post('/activity/first-deposit', {});
+apps/web/src/components/FirstDepositPopup.vue:88:function goDeposit() {
+apps/web/src/components/FirstDepositPopup.vue:109:        <strong>Extra first deposit bonus</strong>
+apps/web/src/components/FirstDepositPopup.vue:114:        <div v-if="state.firstDepositAmount === null" class="fp-nudge">
+apps/web/src/components/FirstDepositPopup.vue:115:          Make your first deposit to unlock a bonus below.
+apps/web/src/components/FirstDepositPopup.vue:144:          <button v-if="state.firstDepositAmount === null" class="fp-cta" @click="goDeposit">
+apps/web/src/components/FirstDepositPopup.vue:145:            Deposit
+apps/web/src/components/LotteryBetPanel.vue:95:      Virtual/test credits only • No deposit • No withdrawal
+apps/web/src/components/SiteFooter.vue:10: * 10,000 live dealers" and "fast deposit and withdrawal" — neither is true
+apps/web/src/views/WalletView.vue:8: * Wallet — JazzCash / Easypaisa deposits and withdrawals.
+apps/web/src/views/WalletView.vue:10: * Deposit is a direct-debit: the player picks a channel and amount, a payment
+apps/web/src/views/WalletView.vue:23:interface Withdrawal {
+apps/web/src/views/WalletView.vue:28:  mode: 'sandbox' | 'live'; channels: Channel[]; minDeposit: string; minWithdraw: string; bonusBps: number;
+apps/web/src/views/WalletView.vue:33:const withdrawals = ref<Withdrawal[]>([]);
+apps/web/src/views/WalletView.vue:34:const tab = ref<'deposit' | 'withdraw'>('deposit');
+apps/web/src/views/WalletView.vue:53:    api.get('/payments/withdrawals?take=10'),
+apps/web/src/views/WalletView.vue:57:  withdrawals.value = w.data.data;
+apps/web/src/views/WalletView.vue:61:// --- deposit ---------------------------------------------------------------
+apps/web/src/views/WalletView.vue:72:  return { deposit: minor, bonus, total: minor + bonus };
+apps/web/src/views/WalletView.vue:80:async function startDeposit() {
+apps/web/src/views/WalletView.vue:82:  if (!depAmount.value || depAmount.value < Number(cfg.value!.minDeposit) / 100) {
+apps/web/src/views/WalletView.vue:83:    return flash(`Minimum deposit is ₹${Number(cfg.value!.minDeposit) / 100}`, true);
+apps/web/src/views/WalletView.vue:91:    const { data } = await api.post('/payments/deposit', {
+apps/web/src/views/WalletView.vue:110:    const { data } = await api.post(`/payments/deposit/${order.value.id}/confirm`, { mpin: mpin.value });
+apps/web/src/views/WalletView.vue:115:      flash('Deposit successful — coins added to your wallet');
+apps/web/src/views/WalletView.vue:129:// --- withdraw --------------------------------------------------------------
+apps/web/src/views/WalletView.vue:135:async function requestWithdraw() {
+apps/web/src/views/WalletView.vue:137:  if (!wdAmount.value || wdAmount.value < Number(cfg.value!.minWithdraw) / 100) {
+apps/web/src/views/WalletView.vue:138:    return flash(`Minimum withdrawal is ₹${Number(cfg.value!.minWithdraw) / 100}`, true);
+apps/web/src/views/WalletView.vue:147:    await api.post('/payments/withdraw', {
+apps/web/src/views/WalletView.vue:155:    flash('Withdrawal requested — pending review');
+apps/web/src/views/WalletView.vue:164:  DEPOSIT: 'Deposit', WITHDRAWAL: 'Withdrawal', BET_STAKE: 'Bet placed', BET_PAYOUT: 'Winnings',
+apps/web/src/views/WalletView.vue:182:      <button :class="{ on: tab === 'deposit' }" @click="tab = 'deposit'">Deposit</button>
+apps/web/src/views/WalletView.vue:183:      <button :class="{ on: tab === 'withdraw' }" @click="tab = 'withdraw'">Withdraw</button>
+apps/web/src/views/WalletView.vue:186:    <!-- DEPOSIT -->
+apps/web/src/views/WalletView.vue:187:    <section v-if="tab === 'deposit'" class="card">
+apps/web/src/views/WalletView.vue:208:        You'll receive <strong class="num">{{ rupees(bonusPreview.deposit) }}</strong>
+apps/web/src/views/WalletView.vue:221:      <button class="btn btn-primary go" :disabled="busy" @click="startDeposit">
+apps/web/src/views/WalletView.vue:226:    <!-- WITHDRAW -->
+apps/web/src/views/WalletView.vue:227:    <section v-if="tab === 'withdraw'" class="card">
+apps/web/src/views/WalletView.vue:228:      <p class="hint">Withdrawals are reviewed before payout. Held funds are refunded if rejected.</p>
+apps/web/src/views/WalletView.vue:240:      <div class="field"><span class="pfx">₹</span><input v-model.number="wdAmount" type="number" min="0" placeholder="Amount to withdraw" /></div>
+apps/web/src/views/WalletView.vue:248:      <button class="btn btn-primary go" :disabled="busy" @click="requestWithdraw">
+apps/web/src/views/WalletView.vue:249:        Request withdrawal
+apps/web/src/views/WalletView.vue:252:      <div v-if="withdrawals.length" class="wd-list">
+apps/web/src/views/WalletView.vue:253:        <strong class="head">Your withdrawals</strong>
+apps/web/src/views/WalletView.vue:254:        <div v-for="w in withdrawals" :key="w.id" class="wd">
+apps/web/src/views/DiceView.vue:601:  /* The dark pupil spins so the knob reads as a ball rolling, not sliding. */
+apps/web/src/views/PromotionView.vue:12:  depositors: number;
+apps/web/src/views/PromotionView.vue:13:  depositAmount: string;
+apps/web/src/views/PromotionView.vue:14:  firstDepositors: number;
+apps/web/src/views/PromotionView.vue:136:            <div class="v green">{{ overview.direct.depositors }}</div>
+apps/web/src/views/PromotionView.vue:137:            <div class="k">Deposit number</div>
+apps/web/src/views/PromotionView.vue:138:            <div class="v amber">{{ formatMinor(overview.direct.depositAmount) }}</div>
+apps/web/src/views/PromotionView.vue:139:            <div class="k">Deposit amount</div>
+apps/web/src/views/PromotionView.vue:140:            <div class="v">{{ overview.direct.firstDepositors }}</div>
+apps/web/src/views/PromotionView.vue:141:            <div class="k">Number of people making first deposit</div>
+apps/web/src/views/PromotionView.vue:146:            <div class="v green">{{ overview.team.depositors }}</div>
+apps/web/src/views/PromotionView.vue:147:            <div class="k">Deposit number</div>
+apps/web/src/views/PromotionView.vue:148:            <div class="v amber">{{ formatMinor(overview.team.depositAmount) }}</div>
+apps/web/src/views/PromotionView.vue:149:            <div class="k">Deposit amount</div>
+apps/web/src/views/PromotionView.vue:150:            <div class="v">{{ overview.team.firstDepositors }}</div>
+apps/web/src/views/PromotionView.vue:151:            <div class="k">Number of people making first deposit</div>
+apps/web/src/views/SupportView.vue:34:  { q: 'How long do withdrawals take?', a: 'Withdrawals are reviewed and usually paid within a few minutes to a few hours.' },
+apps/web/src/views/SupportView.vue:35:  { q: 'Why is my deposit still pending?', a: 'Approve the payment request on your JazzCash / Easypaisa app with your MPIN. If declined, try again.' },
+apps/web/src/views/K3View.vue:96:        <router-link class="btn btn-primary" :to="{ name: 'wallet' }">Deposit</router-link>
+apps/web/src/views/HomeView.vue:181:    headline: 'FIRST DEPOSIT',
+apps/web/src/views/HomeView.vue:561:      <router-link class="dep-btn" :to="{ name: 'wallet' }">Deposit</router-link>
+apps/web/src/views/RewardsView.vue:9: * Rewards centre — daily check-in calendar, the first-deposit bonus, and
+apps/web/src/views/RewardsView.vue:12: * The first-deposit bonus is a SINGLE reward, sized by the highest bracket
+apps/web/src/views/RewardsView.vue:13: * your first deposit reaches (10% of that bracket) — a lower bracket the
+apps/web/src/views/RewardsView.vue:14: * deposit also clears is superseded, not paid in addition.
+apps/web/src/views/RewardsView.vue:24:interface FirstDepositTier {
+apps/web/src/views/RewardsView.vue:29:  firstDeposit: {
+apps/web/src/views/RewardsView.vue:30:    firstDepositAmount: string | null;
+apps/web/src/views/RewardsView.vue:35:    tiers: FirstDepositTier[];
+apps/web/src/views/RewardsView.vue:75:    const { data } = await api.post('/activity/first-deposit', {});
+apps/web/src/views/RewardsView.vue:76:    flash(`First deposit bonus — ${rupees(data.data.amount)}`);
+apps/web/src/views/RewardsView.vue:139:    <!-- First deposit bonus: ONE reward, sized by the highest bracket reached -->
+apps/web/src/views/RewardsView.vue:142:        <strong class="hd">💎 First deposit bonus</strong>
+apps/web/src/views/RewardsView.vue:143:        <span class="up-to">{{ ov.firstDeposit.ratePct }}%</span>
+apps/web/src/views/RewardsView.vue:146:        A {{ ov.firstDeposit.ratePct }}% bonus sized by your first deposit's bracket — only the
+apps/web/src/views/RewardsView.vue:150:      <div v-if="ov.firstDeposit.firstDepositAmount === null" class="fd-hero">
+apps/web/src/views/RewardsView.vue:151:        <span class="fd-hero-l">Make your first deposit to unlock this bonus.</span>
+apps/web/src/views/RewardsView.vue:152:        <router-link class="fd-btn ready" :to="{ name: 'wallet' }">Deposit</router-link>
+apps/web/src/views/RewardsView.vue:154:      <div v-else class="fd-hero" :class="{ done: ov.firstDeposit.claimed }">
+apps/web/src/views/RewardsView.vue:156:          First deposit {{ rupees(ov.firstDeposit.firstDepositAmount) }}
+apps/web/src/views/RewardsView.vue:157:          <template v-if="ov.firstDeposit.qualifiedBonus">qualifies for a bonus below.</template>
+apps/web/src/views/RewardsView.vue:159:            is below the {{ rupees(ov.firstDeposit.tiers[0]?.threshold ?? '0') }} minimum — no bonus
+apps/web/src/views/RewardsView.vue:167:          v-for="t in ov.firstDeposit.tiers"
+apps/web/src/views/RewardsView.vue:176:            :class="{ active: t.qualified && !ov.firstDeposit.claimed }"
+apps/web/src/views/RewardsView.vue:177:            :disabled="!t.qualified || ov.firstDeposit.claimed || busy === 'first'"
+apps/web/src/views/RewardsView.vue:180:            {{ t.qualified && ov.firstDeposit.claimed ? 'Claimed' : 'Claim' }}
+apps/web/src/views/WinGoView.vue:97:        <router-link class="btn btn-primary" :to="{ name: 'wallet' }">Deposit</router-link>
+apps/web/src/views/AccountView.vue:24:  | 'deposits'
+apps/web/src/views/AccountView.vue:25:  | 'withdrawals'
+apps/web/src/views/AccountView.vue:80:    if (s === 'deposits') await profile.loadMoneyHistory('deposit');
+apps/web/src/views/AccountView.vue:81:    if (s === 'withdrawals') await profile.loadMoneyHistory('withdraw');
+apps/web/src/views/AccountView.vue:91:    if (dir === 'in') await profile.safeDeposit(minor);
+apps/web/src/views/AccountView.vue:92:    else await profile.safeWithdraw(minor);
+apps/web/src/views/AccountView.vue:146:      'When they are, this is where a code is entered and credited through the same ledger as a deposit.',
+apps/web/src/views/AccountView.vue:194:    deposits: 'Deposit history',
+apps/web/src/views/AccountView.vue:195:    withdrawals: 'Withdraw history',
+apps/web/src/views/AccountView.vue:243:            <span>Deposit</span>
+apps/web/src/views/AccountView.vue:245:          <button class="q" @click="open('withdrawals')">
+apps/web/src/views/AccountView.vue:247:            <span>Withdraw</span>
+apps/web/src/views/AccountView.vue:281:        <button class="tile" @click="open('deposits')">
+apps/web/src/views/AccountView.vue:283:          <span class="t-txt"><strong>Deposit</strong><em>My deposit history</em></span>
+apps/web/src/views/AccountView.vue:285:        <button class="tile" @click="open('withdrawals')">
+apps/web/src/views/AccountView.vue:287:          <span class="t-txt"><strong>Withdraw</strong><em>My withdraw history</em></span>
+apps/web/src/views/AccountView.vue:443:            v-else-if="['transactions', 'deposits', 'withdrawals'].includes(sheet)"
+apps/web/src/views/AccountView.vue:462:              <template v-if="sheet === 'withdrawals'">
+apps/web/src/views/AccountView.vue:463:                No withdrawals. Withdrawal is not available in this build — no payment provider
+apps/web/src/views/NotificationsView.vue:12:  SYSTEM: '🔔', DEPOSIT: '💰', WITHDRAWAL: '🏧', BONUS: '🎁', VIP: '👑',
+apps/web/src/views/ActivityView.vue:27:  firstDeposit: {
+apps/web/src/views/ActivityView.vue:28:    firstDepositAmount: string | null;
+apps/web/src/views/ActivityView.vue:37:    subDeposit: string;
+apps/web/src/views/ActivityView.vue:58:  | 'first-deposit'
+apps/web/src/views/ActivityView.vue:117:    const { data } = await api.post('/activity/first-deposit', {});
+apps/web/src/views/ActivityView.vue:118:    flash(`First deposit bonus — ₹${formatMinor(data.data.amount)} added`);
+apps/web/src/views/ActivityView.vue:144:  { key: 'first-deposit' as const, icon: '🎁', label: 'First gift', tone: 's-violet' },
+apps/web/src/views/ActivityView.vue:163:    detail: 'Unlock 100 bonus boxes at each level by referring active players. Level 1 (₹500 deposit, ₹5,000 bet) pays ₹600. Level 2 (₹2,000 deposit, ₹20,000 bet) pays ₹1,000. Level 3 (₹5,000 deposit, ₹50,000 bet) pays ₹3,000.',
+apps/web/src/views/ActivityView.vue:166:    key: 'first-deposit',
+apps/web/src/views/ActivityView.vue:167:    title: 'FIRST DEPOSIT',
+apps/web/src/views/ActivityView.vue:169:    caption: '💸 First Deposit Bonus 💸',
+apps/web/src/views/ActivityView.vue:173:      'A 10% welcome bonus sized by your first deposit — the bigger the deposit, the higher the bracket it reaches, from ₹500 up to ₹5,00,000. Only the highest bracket your deposit clears pays; lower brackets are superseded, not stacked. Claimable once per account.',
+apps/web/src/views/ActivityView.vue:289:    'first-deposit': 'First gift',
+apps/web/src/views/ActivityView.vue:298:  FIRST_DEPOSIT: 'First deposit bonus',
+apps/web/src/views/ActivityView.vue:515:          <!-- First deposit: ONE reward, sized by the highest bracket reached -->
+apps/web/src/views/ActivityView.vue:516:          <div v-else-if="sheet === 'first-deposit' && ov" class="sbody fd-sheet">
+apps/web/src/views/ActivityView.vue:518:              A {{ ov.firstDeposit.ratePct }}% welcome bonus sized by your first deposit's bracket.
+apps/web/src/views/ActivityView.vue:519:              Claimable once per account — a lower bracket your deposit also clears is superseded by
+apps/web/src/views/ActivityView.vue:524:            <div v-if="ov.firstDeposit.firstDepositAmount === null" class="fd-hero">
+apps/web/src/views/ActivityView.vue:525:              <span class="fd-hero-l">Make your first deposit to unlock this bonus.</span>
+apps/web/src/views/ActivityView.vue:527:                Deposit
+apps/web/src/views/ActivityView.vue:530:            <div v-else class="fd-hero" :class="{ done: ov.firstDeposit.claimed }">
+apps/web/src/views/ActivityView.vue:532:                Your first deposit ₹{{ formatMinor(ov.firstDeposit.firstDepositAmount) }}
+apps/web/src/views/ActivityView.vue:533:                <template v-if="ov.firstDeposit.qualifiedBonus">qualifies for a bonus below.</template>
+apps/web/src/views/ActivityView.vue:535:                  is below the ₹{{ formatMinor(ov.firstDeposit.tiers[0]?.threshold ?? '0') }} minimum — no
+apps/web/src/views/ActivityView.vue:544:                v-for="t in ov.firstDeposit.tiers"
+apps/web/src/views/ActivityView.vue:553:                  :class="{ active: t.qualified && !ov.firstDeposit.claimed }"
+apps/web/src/views/ActivityView.vue:554:                  :disabled="!t.qualified || ov.firstDeposit.claimed || busy"
+apps/web/src/views/ActivityView.vue:557:                  {{ t.qualified && ov.firstDeposit.claimed ? 'Claimed' : 'Claim' }}
+apps/web/src/views/ActivityView.vue:595:                Subordinates Deposit: <strong>₹{{ formatMinor(ov.promo.subDeposit) }}</strong><br />
+apps/web/src/views/ActivityView.vue:1074:/* --- first deposit: one reward, sized by the highest bracket reached ------ */
+apps/web/src/views/AdminView.vue:25:    deposits: string;
+apps/web/src/views/AdminView.vue:26:    withdrawals: string;
+apps/web/src/views/AdminView.vue:199:// --- payouts (withdrawal queue) --------------------------------------------
+apps/web/src/views/AdminView.vue:212:    const { data } = await api.get('/admin/withdrawals', {
+apps/web/src/views/AdminView.vue:226:    await api.post(`/admin/withdrawals/${p.id}/approve`);
+apps/web/src/views/AdminView.vue:241:    await api.post(`/admin/withdrawals/${p.id}/reject`, { note });
+apps/web/src/views/AdminView.vue:242:    flash('Withdrawal rejected and refunded');
+apps/web/src/views/AdminView.vue:433:          <div class="stat"><span class="k">Deposits</span><span class="v num">{{ rupees(overview.money.deposits) }}</span></div>
+apps/web/src/views/AdminView.vue:434:          <div class="stat"><span class="k">Withdrawals</span><span class="v num">{{ rupees(overview.money.withdrawals) }}</span></div>
+apps/web/src/views/AdminView.vue:490:        <h2>Withdrawal queue</h2>
+apps/web/src/views/AdminView.vue:527:              <td colspan="8" class="muted center">No withdrawals in this view.</td>
+apps/web/src/App.vue:9:import FirstDepositPopup from '@/components/FirstDepositPopup.vue';
+apps/web/src/App.vue:53: * development deposit endpoint — so the label is true rather than decorative.
+apps/web/src/App.vue:131:    <FirstDepositPopup v-if="showNav" />

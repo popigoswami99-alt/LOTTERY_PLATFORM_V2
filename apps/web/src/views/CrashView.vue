@@ -728,4 +728,315 @@ onUnmounted(() => {
   font-size: 13px;
   z-index: 200;
 }
+
+
+/* LOTTERY_PLATFORM_RESPONSIVE_FIX_V2 */
+
+/* Prevent flex/grid children from creating an invisible desktop-width layout. */
+.aviator,
+.layout,
+.main,
+.panels,
+.side,
+.canvas {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.main {
+  overflow: hidden;
+}
+
+.panels {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.panels > * {
+  min-width: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* AviatorBetPanel is a child component, so its scoped CSS needs :deep(). */
+:deep(.panel) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0 !important;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+:deep(.body) {
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+}
+
+:deep(.left),
+:deep(.right),
+:deep(.stepper),
+:deep(.quick),
+:deep(.act),
+:deep(.auto-row) {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+:deep(.val),
+:deep(.amt),
+:deep(.lbl) {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 1000px) {
+  .aviator {
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  .layout {
+    width: 100%;
+    max-width: 100%;
+    padding: 8px;
+  }
+
+  .main {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .panels {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panels > * {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  :deep(.panel) {
+    width: 100%;
+    min-width: 0 !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .aviator {
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
+  }
+
+  .top {
+    min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .brand {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mark {
+    font-size: 18px;
+    white-space: nowrap;
+  }
+
+  .howto {
+    flex: 0 0 auto;
+    max-width: 110px;
+    overflow: hidden;
+  }
+
+  .bal {
+    min-width: 0;
+  }
+
+  .layout {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .canvas {
+    width: 100%;
+    min-width: 0;
+    height: 300px;
+  }
+
+  .panels {
+    width: 100%;
+    max-width: 100%;
+    gap: 8px;
+  }
+
+  :deep(.panel) {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0 !important;
+    padding: 8px;
+  }
+
+  :deep(.body) {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  :deep(.mode) {
+    width: min(160px, 100%);
+    max-width: 100%;
+  }
+
+  :deep(.quick) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :deep(.act) {
+    min-width: 0;
+    width: 100%;
+    min-height: 70px;
+  }
+
+  :deep(.auto-row) {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  :deep(.auto-in) {
+    margin-left: auto;
+    max-width: 70px;
+  }
+}
+
+@media (max-width: 420px) {
+  .top {
+    gap: 5px;
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+
+  .exit {
+    width: 30px;
+    height: 30px;
+  }
+
+  .mark {
+    font-size: 16px;
+  }
+
+  .howto {
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .canvas {
+    height: 260px;
+  }
+
+  :deep(.body) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :deep(.act) {
+    min-height: 64px;
+  }
+}
+
+
+/* LOTTERY_PLATFORM_GAME_UX_03 */
+:root{--game-bg:#121216;--game-card:#1b1b20;--game-border:#2d2d35}
+.aviator,.chicken-road,.mines,.plinko,.limbo,.dice,.wheel,.hilo{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.layout,.main,.board,.canvas,.panels,.panel,.controls,.controls-panel,
+.bet-panel,.game-board,.history,.actions{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box
+}
+.panels>*{min-width:0;max-width:100%;box-sizing:border-box}
+button,input,select{box-sizing:border-box;max-width:100%}
+@media(max-width:1000px){
+ .layout{display:flex;flex-direction:column;width:100%;padding:6px;gap:8px}
+ .panels{display:grid;grid-template-columns:minmax(0,1fr)!important;width:100%}
+ .panels>*{width:100%!important}
+}
+@media(max-width:600px){
+ .canvas,.board{height:300px;min-height:210px}
+ .controls,.controls-panel{padding:8px}
+ .panels{gap:8px}
+ .bet-panel,.panel{overflow:hidden;padding:8px}
+ .quick,.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:420px){
+ .canvas,.board{height:250px;min-height:200px}
+ .body{grid-template-columns:minmax(0,1fr)!important}
+}
+
 </style>
+
+
+/* LOTTERY_PLATFORM_BLOCK_03_ADD_ONLY */
+
+.lp-originals-control,
+.originals-control,
+.game-controls,
+.bet-controls{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+
+@media(max-width:768px){
+  .crash,
+  .aviator,
+  .mines,
+  .plinko,
+  .limbo,
+  .dice,
+  .wheel,
+  .hilo,
+  .dragon-tiger,
+  .andar-bahar,
+  .keno,
+  .layout,
+  .content,
+  .game,
+  .game-area,
+  .controls,
+  .panel{
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+
+  .panels,
+  .bet-panels,
+  .controls-panel,
+  .control-panel{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+  }
+
+  input,
+  select,
+  button{
+    max-width:100%;
+  }
+}

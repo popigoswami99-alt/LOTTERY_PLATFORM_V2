@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import VirtualRewardsCenter from '@/components/VirtualRewardsCenter.vue'
+
 import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { formatMinor } from '@lp/shared';
@@ -100,6 +102,9 @@ onMounted(load);
 </script>
 
 <template>
+    <!-- Unified virtual rewards/promotion center -->
+    <VirtualRewardsCenter />
+
   <div class="page" v-if="ov">
     <header class="top">
       <router-link :to="{ name: 'home' }" class="back">‹</router-link>
@@ -279,4 +284,37 @@ onMounted(load);
   position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%);
   background: rgba(40, 16, 28, 0.95); color: #fff; padding: 9px 16px; border-radius: 999px; font-size: 13px; z-index: 200; max-width: 90%; text-align: center;
 }
+
+/* LOTTERY_PLATFORM_PLATFORM_UX_06 */
+.home,.activity,.rewards,.promotion,.wallet,.account{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.home *,.activity *,.rewards *,.promotion *,.wallet *,.account *{
+ box-sizing:border-box;max-width:100%
+}
+.category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+ width:100%;min-width:0;
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:10px;
+}
+.game-card,.category-card,.promo-card,.reward-card{
+ min-width:0;overflow:hidden;
+}
+@media(max-width:900px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr))
+ }
+}
+@media(max-width:600px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:7px
+ }
+}
+@media(max-width:360px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:5px
+ }
+}
+
 </style>

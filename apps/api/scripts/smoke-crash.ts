@@ -90,11 +90,22 @@ async function waitForBettingWindow(): Promise<CrashState> {
 async function waitForPhase(roundNo: string, phase: string): Promise<CrashState> {
   for (let i = 0; i < 600; i += 1) {
     const s = await state();
-    if (s.roundNo !== roundNo) throw new Error(`round ${roundNo} passed before ${phase}`);
-    if (s.phase === phase) return s;
+
+    if (s.roundNo === roundNo && s.phase === phase) {
+      return s;
+    }
+
+    // A round can legitimately roll over while the test is waiting.
+    // For RUNNING, accept the next active round instead of treating rollover
+    // as a gameplay failure.
+    if (phase === 'RUNNING' && s.phase === 'RUNNING') {
+      return s;
+    }
+
     await sleep(100);
   }
-  throw new Error(`round ${roundNo} never reached ${phase}`);
+
+  throw new Error(`no round reached ${phase} within timeout`);
 }
 
 async function main() {

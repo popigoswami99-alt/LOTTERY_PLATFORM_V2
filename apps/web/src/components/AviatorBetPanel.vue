@@ -347,3 +347,23 @@ watch(
   }
 }
 </style>
+
+/* LOTTERY_RESPONSIVE_AVIATOR */
+@media (min-width: 769px) {
+  .bet-panel,
+  .panel,
+  .aviator-bet-panel {
+    width: min(100%, 620px);
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .bet-panel,
+  .panel,
+  .aviator-bet-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+}

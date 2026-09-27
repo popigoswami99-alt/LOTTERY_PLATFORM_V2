@@ -311,4 +311,86 @@ onUnmounted(() => {
   background: rgba(40, 16, 28, 0.95); color: #fff;
   padding: 9px 16px; border-radius: 999px; font-size: 13px; z-index: 200; max-width: 90%; text-align: center;
 }
+
+/* LOTTERY_PLATFORM_GAME_UX_03 */
+:root{--game-bg:#121216;--game-card:#1b1b20;--game-border:#2d2d35}
+.aviator,.chicken-road,.mines,.plinko,.limbo,.dice,.wheel,.hilo{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.layout,.main,.board,.canvas,.panels,.panel,.controls,.controls-panel,
+.bet-panel,.game-board,.history,.actions{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box
+}
+.panels>*{min-width:0;max-width:100%;box-sizing:border-box}
+button,input,select{box-sizing:border-box;max-width:100%}
+@media(max-width:1000px){
+ .layout{display:flex;flex-direction:column;width:100%;padding:6px;gap:8px}
+ .panels{display:grid;grid-template-columns:minmax(0,1fr)!important;width:100%}
+ .panels>*{width:100%!important}
+}
+@media(max-width:600px){
+ .canvas,.board{height:300px;min-height:210px}
+ .controls,.controls-panel{padding:8px}
+ .panels{gap:8px}
+ .bet-panel,.panel{overflow:hidden;padding:8px}
+ .quick,.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:420px){
+ .canvas,.board{height:250px;min-height:200px}
+ .body{grid-template-columns:minmax(0,1fr)!important}
+}
+
 </style>
+
+
+/* LOTTERY_PLATFORM_BLOCK_03_ADD_ONLY */
+
+.lp-originals-control,
+.originals-control,
+.game-controls,
+.bet-controls{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+
+@media(max-width:768px){
+  .crash,
+  .aviator,
+  .mines,
+  .plinko,
+  .limbo,
+  .dice,
+  .wheel,
+  .hilo,
+  .dragon-tiger,
+  .andar-bahar,
+  .keno,
+  .layout,
+  .content,
+  .game,
+  .game-area,
+  .controls,
+  .panel{
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+
+  .panels,
+  .bet-panels,
+  .controls-panel,
+  .control-panel{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+  }
+
+  input,
+  select,
+  button{
+    max-width:100%;
+  }
+}

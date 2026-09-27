@@ -722,4 +722,86 @@ onUnmounted(() => {
   font-size: 13px;
   z-index: 200;
 }
+
+/* LOTTERY_PLATFORM_GAME_UX_04 */
+.table-game,.dragon-tiger,.andar-bahar,.keno,.moto-race{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.table,.game-table,.card-table,.bet-panel,.controls,.history,.result{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box
+}
+.cards,.seats,.bets,.options,.number-grid{
+ min-width:0;max-width:100%
+}
+button{max-width:100%;box-sizing:border-box}
+@media(max-width:768px){
+ .table-game,.dragon-tiger,.andar-bahar,.keno,.moto-race{padding:6px}
+ .cards,.seats{overflow-x:auto}
+ .bet-panel,.controls{padding:8px}
+ .options,.bets,.number-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  gap:6px;
+ }
+}
+@media(max-width:420px){
+ .cards{gap:4px}
+ .options,.bets,.number-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr))!important;
+ }
+}
+
 </style>
+
+
+/* LOTTERY_PLATFORM_BLOCK_03_ADD_ONLY */
+
+.lp-originals-control,
+.originals-control,
+.game-controls,
+.bet-controls{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+
+@media(max-width:768px){
+  .crash,
+  .aviator,
+  .mines,
+  .plinko,
+  .limbo,
+  .dice,
+  .wheel,
+  .hilo,
+  .dragon-tiger,
+  .andar-bahar,
+  .keno,
+  .layout,
+  .content,
+  .game,
+  .game-area,
+  .controls,
+  .panel{
+    min-width:0;
+    max-width:100%;
+    box-sizing:border-box;
+  }
+
+  .panels,
+  .bet-panels,
+  .controls-panel,
+  .control-panel{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+  }
+
+  input,
+  select,
+  button{
+    max-width:100%;
+  }
+}

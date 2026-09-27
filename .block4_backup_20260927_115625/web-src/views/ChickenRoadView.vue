@@ -1,0 +1,1243 @@
+<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRouter } from 'vue-router';
+import { formatMinor, formatX100, towerLadder } from '@lp/shared';
+import { useInstantStore } from '@/stores/instant';
+import { useAuthStore } from '@/stores/auth';
+import { apiError } from '@/api/client';
+import FairnessPanel from '@/components/FairnessPanel.vue';
+
+const instant = useInstantStore();
+const auth = useAuthStore();
+const router = useRouter();
+
+const stake = ref(10_000n);
+const minesCount = ref(1);
+const busy = ref(false);
+const toast = ref('');
+const showFairness = ref(false);
+const roadContainer = ref<HTMLElement | null>(null);
+
+const CHIPS = [1_000n, 10_000n, 50_000n, 100_000n];
+const ROWS = 10;
+const COLS = 5;
+
+const playing = computed(() => instant.chicken !== null);
+const state = computed(() => instant.chicken?.state);
+const currentRow = computed(() => playing.value ? (state.value?.row ?? 0) : (instant.chickenResult?.finalRow ?? 0));
+const currentMult = computed(() => instant.chicken?.multiplierX100 ?? 0);
+
+type GamePhase = 'IDLE' | 'CROSSING' | 'SAFE' | 'DEAD' | 'WON';
+const phase = ref<GamePhase>('IDLE');
+const autoMode = ref(false);
+
+watch(playing, (p) => {
+  if (p) {
+    phase.value = 'SAFE';
+  } else if (instant.chickenResult) {
+    if (instant.chickenLastHit !== null) phase.value = 'DEAD';
+    else phase.value = 'WON';
+  } else {
+    phase.value = 'IDLE';
+  }
+}, { immediate: true });
+
+const visualPos = computed(() => {
+  if (phase.value === 'IDLE') return 0;
+  if (phase.value === 'CROSSING') return currentRow.value + 1;
+  if (phase.value === 'SAFE') return currentRow.value + 0.5;
+  if (phase.value === 'DEAD') return currentRow.value + 1;
+  if (phase.value === 'WON') return currentRow.value + 0.5;
+  return 0;
+});
+
+const difficulties = [
+  { label: 'Easy', mines: 1 },
+  { label: 'Medium', mines: 2 },
+  { label: 'Hard', mines: 3 },
+  { label: 'Hardcore', mines: 4 },
+];
+
+const cashValue = computed(() => {
+  if (!instant.chicken || currentRow.value === 0) return 0n;
+  return (BigInt(instant.chicken.stake) * 98n * BigInt(currentMult.value)) / (100n * 100n);
+});
+
+const currentLadder = computed(() => towerLadder(minesCount.value));
+
+async function crossNext() {
+  if (busy.value || currentRow.value >= ROWS) {
+    autoMode.value = false;
+    return;
+  }
+  busy.value = true;
+  phase.value = 'CROSSING';
+  
+  await new Promise(r => setTimeout(r, 600));
+  
+  try {
+    const randomLane = Math.floor(Math.random() * COLS);
+    const r = await instant.stepChicken(randomLane);
+    if (r.hitMine) {
+      phase.value = 'DEAD';
+      autoMode.value = false;
+      flash('Ouch! A taxi ran over you!');
+    } else if (r.finished && r.won) {
+      phase.value = 'WON';
+      autoMode.value = false;
+      flash(`Crossed the road! — ₹${formatMinor(r.payout)}`);
+    } else {
+      phase.value = 'SAFE';
+      if (autoMode.value) {
+        setTimeout(crossNext, 400);
+      }
+    }
+  } catch (err) {
+    phase.value = 'SAFE';
+    autoMode.value = false;
+    flash(apiError(err));
+  } finally {
+    busy.value = false;
+  }
+}
+
+async function startAuto() {
+  autoMode.value = true;
+  await start();
+}
+
+async function start() {
+  if (!auth.isLoggedIn) {
+    router.push({ name: 'login', query: { redirect: '/chicken-road' } });
+    return;
+  }
+  busy.value = true;
+  try {
+    await instant.startChicken(stake.value.toString(), minesCount.value);
+    busy.value = false; 
+    await crossNext();
+  } catch (err) {
+    flash(apiError(err));
+    busy.value = false;
+  }
+}
+
+async function cashout() {
+  if (!playing.value || currentRow.value === 0) return;
+  busy.value = true;
+  try {
+    const r = await instant.cashoutChicken();
+    flash(`Cashed out at ${formatX100(r.multiplierX100)}x — ₹${formatMinor(r.payout)}`);
+  } catch (err) {
+    flash(apiError(err));
+  } finally {
+    busy.value = false;
+  }
+}
+
+function scrollToCurrent() {
+  if (!roadContainer.value) return;
+  
+  const track = roadContainer.value.querySelector('.road-track');
+  if (!track || !track.children.length) return;
+
+  const targetIndex = Math.min(ROWS, Math.max(1, Math.ceil(visualPos.value)));
+  const targetElement = track.children[targetIndex] as HTMLElement;
+  
+  if (targetElement) {
+    const containerWidth = roadContainer.value.clientWidth;
+    const targetCenter = targetElement.offsetLeft + (targetElement.offsetWidth / 2);
+    const scrollLeft = targetCenter - (containerWidth / 2);
+    roadContainer.value.scrollTo({ left: Math.max(0, scrollLeft), behavior: 'smooth' });
+  }
+}
+
+watch(visualPos, () => {
+  scrollToCurrent();
+});
+
+let toastTimer: number | undefined;
+function flash(m: string) {
+  toast.value = m;
+  window.clearTimeout(toastTimer);
+  toastTimer = window.setTimeout(() => (toast.value = ''), 2400);
+}
+
+function exit() {
+  router.push({ name: 'home' });
+}
+
+onMounted(async () => {
+  if (auth.isLoggedIn) {
+    await Promise.all([instant.loadSeed(), instant.loadChicken(), instant.loadHistory('CHICKEN')]);
+    if (instant.chicken) {
+      minesCount.value = instant.chicken.state.minesCount;
+      stake.value = BigInt(instant.chicken.stake);
+      scrollToCurrent();
+    }
+  }
+});
+
+onUnmounted(() => {
+  instant.reset();
+  window.clearTimeout(toastTimer);
+});
+</script>
+
+<template>
+  <div class="chicken-road">
+    <!-- Header -->
+    <header class="top">
+      <button class="exit" title="Exit game" @click="exit">←</button>
+      <div class="brand">
+        <span class="mark">🐔 CHICKEN <span style="color:#e50539">ROAD</span></span>
+      </div>
+      <button class="howto">
+        <span class="q">?</span>
+        How to play?
+      </button>
+      <div class="bal">
+        <strong class="mono">{{ formatMinor(auth.balance) }}</strong>
+        <span class="cur">INR</span>
+      </div>
+      <button class="burger"><i /><i /><i /></button>
+    </header>
+
+    <div class="layout">
+      <!-- Game Board -->
+      <section class="board">
+        <div class="road-container" ref="roadContainer">
+          <div class="road-track">
+            <!-- Starting zone -->
+            <div class="lane start-zone">
+              <div class="lane-center">
+                <span v-if="visualPos === 0" class="chicken-avatar">🐔</span>
+              </div>
+            </div>
+
+            <!-- 10 Traffic Lanes -->
+            <div v-for="r in ROWS" :key="r" class="lane-group">
+              <div class="dashed-line">
+                 <span v-if="visualPos === r - 0.5" class="chicken-avatar safe-pos">🐔</span>
+              </div>
+              
+              <div class="lane-center">
+                 <span v-if="visualPos === r && phase !== 'DEAD'" class="chicken-avatar crossing-pos">
+                   🐔
+                   <div class="current-mult">{{ formatX100(currentLadder[r-1]) }}x</div>
+                 </span>
+                 
+                 <span v-else-if="visualPos === r && phase === 'DEAD'" class="run-over-container">
+                   <span class="victim-chicken">🐔</span>
+                   <span class="killer-taxi">🚕</span>
+                 </span>
+                 
+                 <span v-else class="mult-text">{{ formatX100(currentLadder[r-1]) }}x</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Controls Panel -->
+      <section class="controls-panel">
+        <div class="controls-wrapper">
+          <div class="inputs-row">
+            <div class="bet-section">
+              <div class="bet-inputs">
+                <button class="btn-flat" :disabled="playing || busy" @click="stake = stake / 2n">MIN</button>
+                <div class="bet-value">{{ formatMinor(stake).replace('.00', '') }} $</div>
+                <button class="btn-flat" :disabled="playing || busy" @click="stake = stake * 2n">MAX</button>
+              </div>
+              <div class="quick-chips">
+                <button
+                  v-for="c in CHIPS"
+                  :key="c.toString()"
+                  class="chip"
+                  :class="{ on: stake === c }"
+                  :disabled="playing || busy"
+                  @click="stake = c"
+                >
+                  {{ formatMinor(c).replace('.00', '') }} $
+                </button>
+              </div>
+            </div>
+  
+            <div class="diff-section">
+              <div class="diff-header">
+                <span>Difficulty</span>
+                <span class="chance">Chance of being shot down</span>
+              </div>
+              <div class="diff-tabs">
+                <button
+                  v-for="d in difficulties"
+                  :key="d.mines"
+                  class="diff-tab"
+                  :class="{ active: minesCount === d.mines }"
+                  :disabled="playing || busy"
+                  @click="minesCount = d.mines"
+                >
+                  {{ d.label }}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="action-section">
+            <template v-if="autoMode">
+              <button class="btn btn-cashout full-start" @click="autoMode = false">
+                <div class="start-lbl">STOP AUTO</div>
+              </button>
+            </template>
+            <template v-else-if="phase === 'SAFE'">
+              <button class="btn btn-cashout" :disabled="busy" @click="cashout">
+                <div class="cashout-lbl">CASH OUT</div>
+                <div class="cashout-val">{{ formatMinor(cashValue) }} INR</div>
+              </button>
+              <button class="btn btn-go" :disabled="busy" @click="crossNext">
+                <div class="start-lbl">CROSS NEXT</div>
+                <div class="start-val">{{ currentRow + 1 }}/10</div>
+              </button>
+            </template>
+            <template v-else-if="phase === 'CROSSING'">
+              <button class="btn btn-go full-start" disabled>
+                <div class="start-lbl">CROSSING...</div>
+              </button>
+            </template>
+            <template v-else>
+              <button class="btn btn-cashout" style="flex: 0.5" :disabled="busy" @click="startAuto">
+                <div class="start-lbl">AUTO</div>
+              </button>
+              <button class="btn btn-go" style="flex: 1.5" :disabled="busy" @click="start">
+                <div class="start-lbl">START</div>
+                <div class="start-val">{{ formatMinor(stake).replace('.00', '') }} INR</div>
+              </button>
+            </template>
+          </div>
+        </div>
+        
+        <div class="bottom-bar">
+           <button class="fairness-toggle" @click="showFairness = !showFairness">Provably Fair ✓</button>
+        </div>
+      </section>
+      
+      <div v-if="showFairness" class="fairness-modal">
+        <FairnessPanel v-if="auth.isLoggedIn" />
+      </div>
+    </div>
+
+    <transition name="fade">
+      <div v-if="toast" class="toast">{{ toast }}</div>
+    </transition>
+  </div>
+</template>
+
+<style scoped lang="scss">
+.chicken-road {
+  background: #2a2c30;
+  height: calc(100dvh - 130px);
+  min-height: 500px;
+  display: flex;
+  flex-direction: column;
+  color: #e9e9e9;
+  font-size: 13px;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (min-width: 768px) {
+  .chicken-road {
+    height: calc(100dvh - 70px);
+  }
+}
+
+/* Header */
+.top {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 18px;
+  background: #393a40;
+  border-bottom: 1px solid #232428;
+}
+
+.exit {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #4e5058;
+  color: #fff;
+  font-size: 17px;
+  line-height: 1;
+  flex: 0 0 auto;
+  &:hover { background: #5c5e66; }
+}
+
+.brand {
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.howto {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid #666;
+  color: #ccc;
+  font-size: 12px;
+  font-weight: 600;
+  .q {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    border: 1px solid #ccc;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.bal {
+  margin-left: auto;
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  strong {
+    font-size: 15px;
+    color: #fff;
+    font-weight: 800;
+  }
+  .cur {
+    font-size: 11px;
+    color: #999;
+  }
+}
+
+.burger {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  i { width: 16px; height: 2px; background: #ccc; border-radius: 2px; }
+}
+
+.layout {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  position: relative;
+}
+
+/* Game Board */
+.board {
+  flex: 1 1 0;
+  min-height: 250px;
+  background: #606060;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  container-type: size;
+}
+
+.road-container {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  align-items: center;
+  padding: 0 40px;
+  /* hide scrollbar */
+  &::-webkit-scrollbar { display: none; }
+  scrollbar-width: none;
+}
+
+.road-track {
+  display: flex;
+  align-items: center;
+  height: 100%;
+}
+
+.lane {
+  position: relative;
+  height: 100%;
+  width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.lane-group {
+  position: relative;
+  height: 100%;
+  width: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dashed-line {
+  position: absolute;
+  left: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  background: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 20px,
+    #ddd 20px,
+    #ddd 60px
+  );
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  z-index: 5;
+}
+
+.lane-center {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 4;
+}
+
+.start-zone {
+  background: #444;
+  border-right: 4px solid #888;
+}
+
+.obstacle {
+  position: absolute;
+  font-size: min(40px, 10cqh);
+  z-index: 1;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.mult-text {
+  font-size: 14px;
+  font-weight: 800;
+  color: #999;
+}
+
+.chicken-avatar {
+  font-size: min(45px, 11cqh);
+  line-height: 1;
+  z-index: 10;
+  animation: hop-in 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+@keyframes hop-in {
+  0% { transform: scale(0.5) translateY(-20px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.safe-pos {
+  /* positioned correctly by dashed-line flex centering */
+}
+
+.run-over-container {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.victim-chicken {
+  font-size: min(45px, 11cqh);
+  z-index: 10;
+  animation: flatten 0.2s 0.2s forwards;
+}
+
+.killer-taxi {
+  position: absolute;
+  font-size: min(70px, 15cqh);
+  z-index: 11;
+  top: -300%;
+  left: 50%;
+  transform: translateX(-50%) rotate(90deg);
+  animation: drive-over 0.4s linear forwards;
+}
+
+@keyframes drive-over {
+  0% { top: -300%; }
+  45% { top: 0%; transform: translateX(-50%) rotate(90deg) scale(1.1); }
+  100% { top: 300%; }
+}
+
+@keyframes flatten {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.4, 0.1) translateY(30px); opacity: 0.6; filter: grayscale(1) sepia(1) hue-rotate(-50deg) saturate(4) brightness(0.7); }
+}
+
+.current-mult {
+  margin-top: 8px;
+  background: #3b5998;
+  color: #fff;
+  font-size: 11px;
+  font-size: min(14px, 3.5cqh);
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 6px;
+  border: 2px solid #222;
+  white-space: nowrap;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+/* Controls Panel */
+.controls-panel {
+  flex: 0 0 auto;
+  background: #2b2b2b;
+  border-top: 1px solid #1a1a1a;
+  padding: 16px 20px;
+}
+
+.controls-wrapper {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 16px;
+  max-width: 1000px;
+  margin: 0 auto;
+  align-items: center;
+}
+
+.inputs-row {
+  display: flex;
+  flex: 1 1 500px;
+  gap: 16px;
+  align-items: stretch;
+}
+
+.bet-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #383838;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.bet-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #222;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.btn-flat {
+  background: #1b1b1f !important;
+  border: none;
+  color: #888;
+  font-weight: bold;
+  font-size: 11px;
+  padding: 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  &:hover:not(:disabled) { color: #fff; background: #333; }
+  &:disabled { opacity: 0.4; }
+}
+
+.bet-value {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.quick-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  flex: 1;
+  background: #222;
+  border: none;
+  color: #aaa;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  height: 32px;
+  cursor: pointer;
+  &:hover:not(:disabled) { color: #fff; }
+  &.on { background: #555; color: #fff; }
+  &:disabled { opacity: 0.4; cursor: default; }
+}
+
+.diff-section {
+  flex: 1.2;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #383838;
+  padding: 12px;
+  border-radius: 10px;
+}
+
+.diff-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #dcdcdc;
+  margin-bottom: 10px;
+  font-weight: 600;
+  .chance { color: #999; }
+}
+
+.diff-tabs {
+  display: flex;
+  gap: 4px;
+  background: #222;
+  border-radius: 8px;
+  padding: 4px;
+}
+
+.diff-tab {
+  flex: 1;
+  height: 36px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 700;
+  font-size: 13px;
+  color: #999;
+  background: #1b1b1f !important;
+  cursor: pointer;
+  &:hover:not(:disabled) { color: #ccc; }
+  &.active { background: #444; color: #fff; }
+  &:disabled { opacity: 0.5; cursor: default; }
+}
+
+.action-section {
+  display: flex;
+  flex: 1 1 220px;
+  height: 64px;
+}
+
+.btn {
+  border: none;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 18px;
+  color: #fff;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+  transition: transform 0.1s;
+  box-shadow: 0 4px 0 rgba(0,0,0,0.2);
+  cursor: pointer;
+  &:active:not(:disabled) { transform: translateY(4px); box-shadow: 0 0 0 rgba(0,0,0,0.2); }
+  &:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: 0 4px 0 rgba(0,0,0,0.1); }
+}
+
+.btn-cashout {
+  background: #ffd600;
+  color: #111;
+  text-shadow: none;
+  box-shadow: 0 4px 0 #ccaa00;
+  .cashout-lbl { font-size: 14px; }
+  .cashout-val { font-size: 16px; font-weight: 900; }
+  &:active:not(:disabled) { box-shadow: 0 0 0 transparent; }
+}
+
+.btn-go {
+  background: #4ade80;
+  box-shadow: 0 4px 0 #2ea65a;
+  color: #111;
+  text-shadow: none;
+  .start-lbl { font-size: 16px; }
+  .start-val { font-size: 18px; font-weight: 900; }
+  &:active:not(:disabled) { box-shadow: 0 0 0 transparent; }
+  &.full-start { flex: 1; }
+}
+
+.bottom-bar {
+  text-align: center;
+  margin-top: 12px;
+}
+.fairness-toggle {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  &:hover { color: #fff; }
+}
+
+.fairness-modal {
+  position: absolute;
+  top: 60px;
+  right: 20px;
+  background: #1e1e22;
+  border: 1px solid #333;
+  padding: 16px;
+  border-radius: 12px;
+  z-index: 100;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  max-width: 320px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .inputs-row {
+    flex-direction: column;
+  }
+}
+
+/* Mobile Width Enhancements */
+@media (max-width: 600px) {
+  .lane-group, .lane {
+    width: 90px;
+  }
+  .road-container {
+    padding: 0 16px;
+  }
+  .controls-panel {
+    padding: 10px;
+  }
+  .controls-wrapper {
+    gap: 10px;
+  }
+  .inputs-row {
+    gap: 10px;
+  }
+  .bet-section {
+    padding: 8px;
+    gap: 8px;
+  }
+  .bet-inputs {
+    padding: 2px;
+  }
+  .quick-chips {
+    gap: 4px;
+  }
+  .chip {
+    font-size: 11px;
+    height: 30px;
+  }
+  .diff-section {
+    padding: 8px;
+  }
+  .diff-header {
+    margin-bottom: 6px;
+  }
+  .diff-tabs {
+    padding: 2px;
+  }
+  .diff-tab {
+    height: 32px;
+    font-size: 12px;
+  }
+  .btn {
+    height: 54px;
+    font-size: 16px;
+  }
+  .btn-cashout .cashout-lbl {
+    font-size: 12px;
+  }
+  .btn-cashout .cashout-val {
+    font-size: 14px;
+  }
+}
+
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 200px;
+  transform: translateX(-50%);
+  background: #1b1b1f !important;
+  border: 1px solid #444;
+  padding: 12px 24px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: bold;
+  z-index: 200;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+}
+
+@keyframes shake {
+  10%, 90% { transform: translate3d(-1px, 0, 0); }
+  20%, 80% { transform: translate3d(2px, 0, 0); }
+  30%, 50%, 70% { transform: translate3d(-4px, 0, 0); }
+  40%, 60% { transform: translate3d(4px, 0, 0); }
+}
+
+
+/* LOTTERY_PLATFORM_RESPONSIVE_FIX_V2 */
+
+.chicken-road,
+.layout,
+.board,
+.controls-panel,
+.controls-wrapper,
+.inputs-row,
+.bet-section,
+.diff-section,
+.action-section {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.chicken-road {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+.layout {
+  overflow-x: hidden;
+}
+
+.board {
+  overflow: hidden;
+}
+
+.controls-wrapper {
+  overflow: hidden;
+}
+
+.inputs-row,
+.bet-section,
+.diff-section,
+.action-section {
+  min-width: 0;
+}
+
+.bet-inputs,
+.quick-chips,
+.diff-tabs {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.bet-inputs > *,
+.quick-chips > *,
+.diff-tabs > * {
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.bet-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diff-header {
+  min-width: 0;
+}
+
+.diff-header .chance {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.action-section {
+  width: 100%;
+}
+
+.action-section .btn {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .chicken-road {
+    width: 100%;
+    max-width: 100vw;
+    height: auto;
+    min-height: 0;
+    overflow-x: hidden;
+  }
+
+  .top {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .brand {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .mark {
+    white-space: nowrap;
+    font-size: 17px;
+  }
+
+  .howto {
+    flex: 0 0 auto;
+    max-width: 105px;
+    overflow: hidden;
+  }
+
+  .bal {
+    min-width: 0;
+  }
+
+  .layout {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .board {
+    width: 100%;
+    min-width: 0;
+    min-height: 250px;
+    height: 42vh;
+    max-height: 420px;
+  }
+
+  .road-container {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 0 16px;
+  }
+
+  .controls-panel {
+    width: 100%;
+    max-width: 100%;
+    padding: 10px;
+    overflow: hidden;
+  }
+
+  .controls-wrapper {
+    width: 100%;
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .inputs-row {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .bet-section,
+  .diff-section {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+  }
+
+  .diff-header {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+
+  .diff-header > span:first-child {
+    flex: 0 0 auto;
+  }
+
+  .diff-header .chance {
+    flex: 1;
+    text-align: right;
+  }
+
+  .diff-tabs {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .diff-tab {
+    min-width: 0;
+  }
+
+  .action-section {
+    width: 100%;
+    max-width: 100%;
+    flex: none;
+    height: 58px;
+  }
+
+  .bottom-bar {
+    width: 100%;
+    margin-top: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .top {
+    gap: 5px;
+    padding-left: 7px;
+    padding-right: 7px;
+  }
+
+  .exit {
+    width: 30px;
+    height: 30px;
+  }
+
+  .mark {
+    font-size: 15px;
+  }
+
+  .howto {
+    max-width: 88px;
+    padding: 0 7px;
+    font-size: 10px;
+  }
+
+  .board {
+    height: 38vh;
+    min-height: 220px;
+  }
+
+  .road-container {
+    padding: 0 10px;
+  }
+
+  .controls-panel {
+    padding: 8px;
+  }
+
+  .bet-section,
+  .diff-section {
+    padding: 8px;
+  }
+
+  .diff-header .chance {
+    font-size: 10px;
+  }
+
+  .action-section {
+    height: 56px;
+  }
+
+  .btn {
+    min-width: 0;
+    font-size: 15px;
+  }
+
+  .btn .start-val,
+  .btn .cashout-val {
+    font-size: 14px;
+  }
+}
+
+@media (max-width: 360px) {
+  .howto {
+    display: none;
+  }
+
+  .board {
+    height: 34vh;
+    min-height: 205px;
+  }
+
+  .diff-header .chance {
+    display: none;
+  }
+
+  .diff-tabs {
+    gap: 2px;
+  }
+
+  .diff-tab {
+    font-size: 10px;
+  }
+}
+
+
+/* LOTTERY_PLATFORM_GAME_UX_03 */
+:root{--game-bg:#121216;--game-card:#1b1b20;--game-border:#2d2d35}
+.aviator,.chicken-road,.mines,.plinko,.limbo,.dice,.wheel,.hilo{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.layout,.main,.board,.canvas,.panels,.panel,.controls,.controls-panel,
+.bet-panel,.game-board,.history,.actions{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box
+}
+.panels>*{min-width:0;max-width:100%;box-sizing:border-box}
+button,input,select{box-sizing:border-box;max-width:100%}
+@media(max-width:1000px){
+ .layout{display:flex;flex-direction:column;width:100%;padding:6px;gap:8px}
+ .panels{display:grid;grid-template-columns:minmax(0,1fr)!important;width:100%}
+ .panels>*{width:100%!important}
+}
+@media(max-width:600px){
+ .canvas,.board{height:300px;min-height:210px}
+ .controls,.controls-panel{padding:8px}
+ .panels{gap:8px}
+ .bet-panel,.panel{overflow:hidden;padding:8px}
+ .quick,.quick-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media(max-width:420px){
+ .canvas,.board{height:250px;min-height:200px}
+ .body{grid-template-columns:minmax(0,1fr)!important}
+}
+
+</style>
+
+/* LOTTERY_RESPONSIVE_CHICKEN */
+@media (min-width: 769px) {
+  .game,
+  .game-shell,
+  .game-container,
+  .panel,
+  .bet-panel,
+  .controls,
+  .bottom-panel {
+    max-width: 1100px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+@media (max-width: 768px) {
+  .game,
+  .game-shell,
+  .game-container,
+  .panel,
+  .bet-panel,
+  .controls,
+  .bottom-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+}

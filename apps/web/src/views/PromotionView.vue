@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import VirtualRewardsCenter from '@/components/VirtualRewardsCenter.vue'
+
 import { computed, onMounted, ref } from 'vue';
 import { formatMinor } from '@lp/shared';
 import { api, apiError } from '@/api/client';
@@ -109,6 +111,9 @@ const SHEET_TITLES: Record<string, string> = {
 </script>
 
 <template>
+    <!-- Unified virtual rewards/promotion center -->
+    <VirtualRewardsCenter />
+
   <div class="page">
     <header class="topbar">
       <span class="title">Agency</span>
@@ -776,4 +781,37 @@ const SHEET_TITLES: Record<string, string> = {
   font-size: 13px;
   z-index: 400;
 }
+
+/* LOTTERY_PLATFORM_PLATFORM_UX_06 */
+.home,.activity,.rewards,.promotion,.wallet,.account{
+ width:100%;max-width:100vw;min-width:0;box-sizing:border-box;overflow-x:hidden
+}
+.home *,.activity *,.rewards *,.promotion *,.wallet *,.account *{
+ box-sizing:border-box;max-width:100%
+}
+.category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+ width:100%;min-width:0;
+ display:grid;
+ grid-template-columns:repeat(4,minmax(0,1fr));
+ gap:10px;
+}
+.game-card,.category-card,.promo-card,.reward-card{
+ min-width:0;overflow:hidden;
+}
+@media(max-width:900px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(3,minmax(0,1fr))
+ }
+}
+@media(max-width:600px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:7px
+ }
+}
+@media(max-width:360px){
+ .category-grid,.game-grid,.cards-grid,.promo-grid,.reward-grid{
+  grid-template-columns:repeat(2,minmax(0,1fr));gap:5px
+ }
+}
+
 </style>

@@ -656,4 +656,79 @@ onUnmounted(() => {
   max-width: 90%;
   text-align: center;
 }
+
+/* LOTTERY_PLATFORM_GAME_UX_02 */
+.game,.wingo,.k3,.fourd,.fived{
+ width:100%;max-width:100%;min-width:0;box-sizing:border-box;
+ overflow-x:hidden;
+}
+button,input,select{max-width:100%;box-sizing:border-box}
+@media(max-width:768px){
+ .game,.wingo,.k3,.fourd,.fived{width:100%;padding-left:6px;padding-right:6px}
+ .bet,.bet-panel,.bet-sheet,.panel,.controls,.content,.main{
+   width:100%;max-width:100%;min-width:0;box-sizing:border-box
+ }
+ .bet-grid,.number-grid,.options-grid,.quick-grid{
+   grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+   min-width:0 !important;width:100% !important
+ }
+}
+@media(max-width:420px){
+ .number-grid,.options-grid,.quick-grid{
+   grid-template-columns:repeat(2,minmax(0,1fr)) !important
+ }
+}
+
 </style>
+
+
+/* LOTTERY_PLATFORM_BLOCK_02_ADD_ONLY */
+
+.lottery-bet-panel,
+.lp-lottery-bet-panel,
+.lottery-history,
+.lp-history{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}
+
+@media(max-width:768px){
+  .wingo,
+  .k3,
+  .four-d,
+  .five-d,
+  .game-view,
+  .page,
+  .content,
+  .layout{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    overflow-x:hidden;
+  }
+
+  .bet-panel,
+  .bet-sheet,
+  .history,
+  .results,
+  .game-panel{
+    width:100%;
+    max-width:100%;
+    min-width:0;
+    box-sizing:border-box;
+  }
+}
+
+@media(min-width:769px){
+  .bet-panel,
+  .bet-sheet,
+  .history,
+  .results,
+  .game-panel{
+    max-width:900px;
+    margin-left:auto;
+    margin-right:auto;
+  }
+}

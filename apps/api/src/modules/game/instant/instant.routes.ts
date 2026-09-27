@@ -47,6 +47,7 @@ import {
   hiloStart,
   playKeno,
   playMotoRace,
+  playPlinko,
   playWheel,
   startChicken,
   stepChicken,

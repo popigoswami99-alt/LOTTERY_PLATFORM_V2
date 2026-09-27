@@ -184,9 +184,11 @@ function submit() {
 .sheet {
   width: 100%;
   max-width: var(--shell);
-  background: var(--surface);
+  background: #1b1b1f !important;
+  opacity: 1 !important;
   border-radius: 16px 16px 0 0;
   overflow: hidden;
+  isolation: isolate;
 }
 
 .head {
@@ -341,3 +343,20 @@ function submit() {
   }
 }
 </style>
+
+/* LOTTERY_RESPONSIVE_BETSHEET */
+@media (min-width: 769px) {
+  .sheet {
+    width: min(100%, 560px);
+    margin: 0 auto;
+    border-radius: 16px 16px 0 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .sheet {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 16px 16px 0 0;
+  }
+}

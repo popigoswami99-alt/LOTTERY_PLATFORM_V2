@@ -50,6 +50,7 @@ import {
   type HiloCall,
   type HiloCard,
   type PlinkoRisk,
+  type PlinkoRows,
   type WheelRisk,
   GAME_CODE_CHICKEN,
   isValidTowerMineCount,
@@ -890,7 +891,9 @@ export async function stepChicken(userId: bigint, lane: number) {
       }
     }
 
-    const nextState = hitMine ? open.state : (state as unknown as Prisma.InputJsonValue);
+    const nextState = hitMine
+      ? (open.state ?? (null as unknown as Prisma.InputJsonValue))
+      : (state as unknown as Prisma.InputJsonValue);
     
     const data: Prisma.InstantBetUpdateInput = {
       state: nextState,
